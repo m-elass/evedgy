@@ -1,0 +1,12 @@
+# ── Dependencias del backend ──────────────────────────────
+# Se instalan con:  pip install -r requirements.txt
+
+fastapi==0.115.6          # el framework de la API
+uvicorn[standard]==0.34.0 # el servidor que ejecuta FastAPI
+sqlalchemy==2.0.36        # ORM: hablar con la base de datos usando objetos Python
+psycopg2-binary==2.9.10   # driver para conectar Python con PostgreSQL
+pydantic==2.10.4          # validación de datos (qué forma tienen las cosas)
+pydantic-settings==2.7.0  # leer configuración desde el archivo .env
+python-dotenv==1.0.1      # cargar variables del .env
+python-jose[cryptography]==3.3.0  # verificar los tokens de login de Supabase
+anthropic==0.40.0          # generacion de temas con IA (opcional)

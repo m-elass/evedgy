@@ -1,0 +1,278 @@
+:root {
+  --ink:#0B1B33; --inkSoft:#13294D; --paper:#15294A; --paperEdge:#27416B;
+  --sepia:#7E9AC0; --sepiaInk:#D8E8F5; --olive:#E8B84B; --oliveSoft:#FBF0C8;
+  --rust:#7FD5E8; --cream:#0B1B33;
+  --grad-gold: linear-gradient(135deg, #A6741E 0%, #E8B84B 42%, #FBF0C8 60%, #E8B84B 78%, #A6741E 100%);
+  --grad-gold-soft: linear-gradient(135deg, #8A5E18 0%, #C99A38 100%);
+  --glow-gold: 0 0 12px rgba(232,184,75,0.45);
+  --fontDisplay: 'Cormorant Garamond', Georgia, serif;
+  --fontBody: 'Inter', 'Helvetica Neue', system-ui, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  -webkit-font-smoothing: antialiased;
+  background: var(--ink);
+  background-image: radial-gradient(ellipse at 50% 0%, rgba(127,213,232,0.10), transparent 60%);
+  background-attachment: fixed;
+}
+input:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--rust); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Utilidades para el oro metalico, usables desde cualquier seccion */
+.gold-text { background: var(--grad-gold); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.gold-fill { background: var(--grad-gold); box-shadow: var(--glow-gold); }
+
+/* ═══════════ CAPA DE VIDA: animaciones y micro-interacciones ═══════════ */
+
+/* Entrada de cada sección: sube suave y aparece */
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.view-anim { animation: viewIn .32s cubic-bezier(.2,.7,.3,1) both; }
+
+/* Todo botón responde al tacto: se hunde ligeramente */
+button { transition: transform .12s ease, opacity .15s ease, box-shadow .2s ease; }
+button:active { transform: scale(.965); }
+
+/* Esqueletos de carga: bloques que respiran con un brillo que recorre */
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+.skel {
+  border-radius: 10px;
+  background: linear-gradient(90deg, #15294A 25%, #1E3A5F 50%, #15294A 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* Celebración de récord */
+@keyframes celebIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes celebPop {
+  0% { transform: scale(.5); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes raysSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(.4); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* Barra del temporizador de descanso */
+@keyframes pulseGold { 0%,100% { box-shadow: 0 0 8px rgba(232,184,75,.35);} 50% { box-shadow: 0 0 18px rgba(232,184,75,.7);} }
+
+/* Selección de texto en oro */
+::selection { background: rgba(232,184,75,.35); }
+
+/* Scroll fino y discreto */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #27416B; border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+
+/* ═══ FLUJO: las piezas de cada sección entran en cascada ═══ */
+.view-anim { animation: none; }
+.view-anim > * { animation: viewIn .5s cubic-bezier(.2,.7,.3,1) both; }
+.view-anim > *:nth-child(2) { animation-delay: .05s; }
+.view-anim > *:nth-child(3) { animation-delay: .1s; }
+.view-anim > *:nth-child(4) { animation-delay: .15s; }
+.view-anim > *:nth-child(5) { animation-delay: .2s; }
+.view-anim > *:nth-child(6) { animation-delay: .25s; }
+.view-anim > *:nth-child(n+7) { animation-delay: .3s; }
+.reveal { animation: viewIn .3s ease both; }
+
+/* Atmósfera: doble resplandor (cian arriba, violeta abajo) y hondura vertical */
+#root > div:first-child {
+  background-image:
+    radial-gradient(ellipse at 50% -6%, rgba(127,213,232,.13), transparent 52%),
+    radial-gradient(ellipse at 90% 108%, rgba(183,156,255,.09), transparent 46%),
+    linear-gradient(180deg, transparent 60%, rgba(0,0,0,.25)) !important;
+}
+html { scroll-behavior: smooth; }
+
+
+/* ═══ EL MAR: fondo vivo y continuo bajo toda la app ═══ */
+#root > div:first-child { background-image: none !important; }
+.sea { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  background: linear-gradient(180deg, #16315C 0%, #102647 46%, #0B1D3A 100%); }
+/* masas de luz caustica que derivan lentamente */
+.sea::before, .sea::after { content: ""; position: absolute; inset: -30%; }
+.sea::before { background:
+  radial-gradient(ellipse 60% 42% at 28% 12%, rgba(127,224,245,.20), transparent 60%),
+  radial-gradient(ellipse 50% 38% at 78% 30%, rgba(127,224,245,.10), transparent 60%);
+  animation: seaDrift 26s ease-in-out infinite alternate; }
+.sea::after { background:
+  radial-gradient(ellipse 55% 40% at 75% 92%, rgba(183,156,255,.13), transparent 62%),
+  radial-gradient(ellipse 45% 34% at 15% 78%, rgba(232,184,75,.07), transparent 60%);
+  animation: seaDrift 34s ease-in-out infinite alternate-reverse; }
+@keyframes seaDrift {
+  from { transform: translate(-2.5%, -1.5%) scale(1); }
+  to   { transform: translate(2.5%, 2%)  scale(1.06); }
+}
+/* burbujas que ascienden, como en el abismo */
+.sea i { position: absolute; bottom: -30px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, rgba(255,255,255,.5), rgba(180,225,245,.14) 62%, transparent 72%);
+  animation: rise linear infinite; }
+.sea i:nth-child(1) { left: 12%; width: 7px;  height: 7px;  animation-duration: 17s; }
+.sea i:nth-child(2) { left: 33%; width: 4px;  height: 4px;  animation-duration: 23s; animation-delay: 5s; }
+.sea i:nth-child(3) { left: 58%; width: 9px;  height: 9px;  animation-duration: 20s; animation-delay: 2s; }
+.sea i:nth-child(4) { left: 76%; width: 5px;  height: 5px;  animation-duration: 26s; animation-delay: 9s; }
+.sea i:nth-child(5) { left: 90%; width: 6px;  height: 6px;  animation-duration: 19s; animation-delay: 13s; }
+@keyframes rise {
+  0%   { transform: translateY(0) translateX(0);     opacity: 0; }
+  8%   { opacity: .7; }
+  92%  { opacity: .5; }
+  100% { transform: translateY(-108vh) translateX(14px); opacity: 0; }
+}
+
+/* ═══ LA CORRIENTE: el contenido fluye lateralmente al cambiar de sección ═══ */
+@keyframes slideL { from { opacity: 0; transform: translateX(48px); } to { opacity: 1; transform: none; } }
+@keyframes slideR { from { opacity: 0; transform: translateX(-48px); } to { opacity: 1; transform: none; } }
+.view-anim.slide-l > * { animation-name: slideL; }
+.view-anim.slide-r > * { animation-name: slideR; }
+
+
+/* ═══ EL MAR DE ESTRELLAS: el cielo de toda la app ═══ */
+.sea{background:
+  radial-gradient(ellipse 70% 50% at 72% 6%, rgba(122,82,201,.36), transparent 60%),
+  radial-gradient(ellipse 55% 45% at 16% 20%, rgba(88,58,168,.28), transparent 62%),
+  linear-gradient(180deg,#141F4A 0%,#122347 42%,#0E2A52 74%,#154176 100%)}
+.sea::before{background-image:
+  radial-gradient(1.4px 1.4px at 22% 31%, rgba(255,255,255,.95), transparent 55%),
+  radial-gradient(1px 1px at 68% 12%, rgba(255,255,255,.85), transparent 55%),
+  radial-gradient(1.7px 1.7px at 45% 64%, rgba(214,228,255,.95), transparent 55%),
+  radial-gradient(1px 1px at 85% 42%, rgba(255,255,255,.75), transparent 55%),
+  radial-gradient(1.2px 1.2px at 8% 55%, rgba(255,255,255,.8), transparent 55%),
+  radial-gradient(1px 1px at 33% 82%, rgba(255,255,255,.7), transparent 55%);
+  background-size:260px 260px,190px 190px,320px 320px,230px 230px,170px 170px,280px 280px;
+  animation:seaDrift 70s ease-in-out infinite alternate;opacity:.95}
+.sea::after{inset:-12%;filter:blur(2px);animation:seaDrift 90s ease-in-out infinite alternate-reverse;
+  background:linear-gradient(115deg,transparent 32%,rgba(150,120,220,.15) 45%,rgba(224,204,255,.20) 52%,rgba(150,120,220,.13) 59%,transparent 72%)}
+/* el agua en el horizonte, abajo */
+body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:20vh;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(56,120,196,0) 0%,rgba(64,132,210,.30) 35%,rgba(46,104,178,.5) 100%)}
+
+/* ═══ el mapa: arrastrar el mar, tocar una estrella ═══ */
+.smap-wrap{position:fixed;inset:0;z-index:5;overflow:hidden;touch-action:none;cursor:grab;
+  animation:surface .55s cubic-bezier(.2,.8,.3,1) both}
+.smap-wrap:active{cursor:grabbing}
+@keyframes surface{from{opacity:0;transform:scale(1.45)}to{opacity:1;transform:none}}
+.smap{position:absolute;left:0;top:0;will-change:transform}
+.mdot{position:absolute;border-radius:50%;background:#fff;animation:twinkle ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:.22}50%{opacity:1}}
+.mzone{position:absolute;transform:translate(-50%,-50%);pointer-events:none;
+  font-family:'Cormorant Garamond',serif;font-size:15px;letter-spacing:.5em;text-transform:uppercase;
+  color:rgba(196,218,255,.38)}
+.stnode{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;
+  align-items:center;gap:7px;background:none;border:none;cursor:pointer;padding:10px}
+.stcore{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  color:#DCE9FF;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.30),rgba(30,59,107,.92) 62%);
+  border:1px solid rgba(180,210,255,.45);
+  box-shadow:0 0 16px rgba(150,195,255,.5),inset 0 1px 0 rgba(255,255,255,.3);
+  transition:transform .15s ease}
+.stnode:active .stcore{transform:scale(.9)}
+.stlab{font-family:'Inter',sans-serif;font-size:10.5px;color:#CFE0F5;text-shadow:0 1px 8px rgba(0,0,0,.7)}
+.stnode.center .stcore{width:60px;height:60px;color:#0B1B33;
+  background:radial-gradient(circle at 35% 30%,#FFF3C7,#E8B84B 58%,#9A6A14);
+  border-color:rgba(255,243,199,.7);box-shadow:0 0 30px rgba(232,184,75,.8);
+  animation:pulseGold 3s ease infinite}
+.stnode.center .stlab{font-weight:700;color:#F6E7B0;font-size:12px}
+.maphint{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:6;
+  background:rgba(20,40,80,.78);border:1px solid rgba(140,175,230,.35);border-radius:999px;
+  padding:9px 18px;font-family:'Inter',sans-serif;font-size:12px;color:#BBD2F0;
+  backdrop-filter:blur(8px);pointer-events:none}
+
+/* ═══ zoom: entrar en una estrella / volver al mar ═══ */
+.zoomer{animation:zoomIn .5s cubic-bezier(.2,.85,.3,1) both;position:relative;z-index:1}
+@keyframes zoomIn{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+.zoomer.out{animation:zoomOut .3s ease both}
+@keyframes zoomOut{to{opacity:0;transform:scale(.82)}}
+
+/* ═══ ARTE v2 del mar de estrellas ═══ */
+/* la chispa que viaja por los hilos dorados */
+.flow{stroke-dasharray:7 110;animation:dashFlow 5.5s linear infinite;opacity:.85;
+  filter:drop-shadow(0 0 3px rgba(255,239,194,.9))}
+@keyframes dashFlow{to{stroke-dashoffset:-117}}
+
+/* motas brillantes con fulgor */
+.mdot.big{box-shadow:0 0 7px 1.5px rgba(255,255,255,.85)}
+
+/* nebulosas del lienzo */
+.neb{position:absolute;border-radius:50%;filter:blur(26px);pointer-events:none}
+
+/* la etiqueta bajo cada estrella, con más presencia */
+.stlab{letter-spacing:.02em}
+.stnode{gap:2px}
+.stnode .stcore{display:none}  /* el círculo antiguo queda retirado */
+
+/* ═══ cielo global MÁS DENSO (también bajo las secciones) ═══ */
+.sea{background:
+  radial-gradient(ellipse 70% 50% at 72% 6%, rgba(122,82,201,.38), transparent 60%),
+  radial-gradient(ellipse 46% 38% at 12% 34%, rgba(206,120,110,.16), transparent 62%),
+  radial-gradient(ellipse 55% 45% at 20% 14%, rgba(88,58,168,.30), transparent 62%),
+  linear-gradient(180deg,#141F4A 0%,#122347 42%,#0E2A52 74%,#154176 100%)}
+.sea::before{background-image:
+  radial-gradient(1.4px 1.4px at 22% 31%, rgba(255,255,255,.95), transparent 55%),
+  radial-gradient(1px 1px at 68% 12%, rgba(255,255,255,.85), transparent 55%),
+  radial-gradient(1.7px 1.7px at 45% 64%, rgba(214,228,255,.95), transparent 55%),
+  radial-gradient(1px 1px at 85% 42%, rgba(255,255,255,.75), transparent 55%),
+  radial-gradient(1.2px 1.2px at 8% 55%, rgba(255,255,255,.8), transparent 55%),
+  radial-gradient(1px 1px at 33% 82%, rgba(255,255,255,.7), transparent 55%),
+  radial-gradient(1px 1px at 56% 23%, rgba(255,255,255,.85), transparent 55%),
+  radial-gradient(1.3px 1.3px at 91% 76%, rgba(226,234,255,.85), transparent 55%),
+  radial-gradient(0.9px 0.9px at 14% 88%, rgba(255,255,255,.7), transparent 55%);
+  background-size:260px 260px,190px 190px,320px 320px,230px 230px,170px 170px,280px 280px,150px 150px,340px 340px,120px 120px;
+  animation:seaDrift 70s ease-in-out infinite alternate;opacity:.95}
+
+/* ═══ ESPECTÁCULO: hondura, nubes, fugaces, reflejos, vida ═══ */
+.smap-far{position:absolute;left:0;top:0;width:1300px;height:1300px;pointer-events:none;will-change:transform}
+
+/* nubes luminosas del horizonte (como en el mar de Genshin) */
+.clouds{position:fixed;left:0;right:0;bottom:5vh;height:26vh;z-index:0;pointer-events:none}
+.clouds b{position:absolute;bottom:0;border-radius:50%;filter:blur(15px);
+  background:radial-gradient(closest-side, rgba(228,240,255,.18), rgba(210,228,255,.06) 58%, transparent 75%);
+  animation:cloudDrift ease-in-out infinite alternate}
+.clouds b:nth-child(1){left:-8%;width:54vw;height:21vh;animation-duration:38s}
+.clouds b:nth-child(2){left:36%;width:62vw;height:25vh;animation-duration:47s;animation-delay:-14s;
+  background:radial-gradient(closest-side, rgba(232,242,255,.22), rgba(200,224,255,.07) 56%, transparent 75%)}
+.clouds b:nth-child(3){left:72%;width:48vw;height:18vh;animation-duration:42s;animation-delay:-26s}
+@keyframes cloudDrift{from{transform:translateX(-2.5%)}to{transform:translateX(2.5%)}}
+
+/* estrellas fugaces (esporádicas, cada una con su ruta) */
+.meteors i{position:fixed;top:0;left:0;width:2.5px;height:2.5px;border-radius:50%;background:#fff;
+  box-shadow:0 0 9px 2px rgba(214,232,255,.95);z-index:1;pointer-events:none;opacity:0;
+  animation:shoot linear infinite}
+.meteors i::after{content:"";position:absolute;right:1px;top:0.4px;width:110px;height:1.6px;
+  background:linear-gradient(90deg, rgba(224,238,255,.95), transparent);border-radius:2px}
+.meteors i:nth-child(1){animation-duration:17s;animation-delay:2s;--x0:78vw;--y0:5vh;--x1:44vw;--y1:30vh}
+.meteors i:nth-child(2){animation-duration:26s;animation-delay:10s;--x0:30vw;--y0:2vh;--x1:6vw;--y1:22vh}
+.meteors i:nth-child(3){animation-duration:33s;animation-delay:19s;--x0:92vw;--y0:16vh;--x1:60vw;--y1:42vh}
+@keyframes shoot{
+  0%{opacity:0;transform:translate(var(--x0),var(--y0)) rotate(-33deg)}
+  1.5%{opacity:1}
+  8%{opacity:0;transform:translate(var(--x1),var(--y1)) rotate(-33deg)}
+  100%{opacity:0;transform:translate(var(--x1),var(--y1)) rotate(-33deg)}}
+
+/* reflejos del cielo sobre el agua */
+.glints{position:fixed;left:0;right:0;bottom:0;height:15vh;z-index:0;pointer-events:none;opacity:.55;
+  background:repeating-linear-gradient(90deg,transparent 0 24px,rgba(214,236,255,.06) 24px 25.5px,transparent 25.5px 52px);
+  -webkit-mask-image:linear-gradient(180deg,transparent,black 45%);mask-image:linear-gradient(180deg,transparent,black 45%);
+  animation:glintX 16s ease-in-out infinite alternate}
+@keyframes glintX{to{transform:translateX(20px)}}
+
+/* viñeta cinematográfica del mar */
+.smap-wrap::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 46%, transparent 50%, rgba(5,11,26,.45) 100%)}
+
+/* las estrellas nacen escalonadas al emerger, y titilean vivas */
+.stnode{animation:starpop .55s cubic-bezier(.2,.9,.3,1.25) both}
+@keyframes starpop{from{opacity:0;transform:translate(-50%,-50%) scale(.35)}
+  to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.sttw{display:block;animation:sttw 4.2s ease-in-out infinite}
+@keyframes sttw{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.05);filter:brightness(1.2)}}
+.corona{transform-box:view-box;transform-origin:center;animation:coronaspin 48s linear infinite}
+@keyframes coronaspin{to{transform:rotate(360deg)}}
+
+/* respeto a "reducir movimiento" del sistema */
+@media (prefers-reduced-motion: reduce){
+  .flow,.mdot,.sttw,.meteors i,.corona,.clouds b,.glints,.sea::before,.sea::after,.sea i{animation:none !important}
+}

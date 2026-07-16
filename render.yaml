@@ -1,0 +1,23 @@
+# ══════════════════════════════════════════════════════════════
+# Configuración automática para Render ("Blueprint").
+# Con este archivo, en Render solo tienes que hacer:
+#   New + -> Blueprint -> elegir tu repositorio
+# y Render rellena solo el directorio, los comandos y el plan.
+# Únicamente te pedirá pegar los valores de las claves marcadas
+# con sync:false (los sacas de Supabase; ver guía).
+# ══════════════════════════════════════════════════════════════
+services:
+  - type: web
+    name: tu-cuaderno-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL      # cadena de conexión de Supabase (Session pooler)
+        sync: false
+      - key: SUPABASE_JWT_SECRET   # JWT Secret de Supabase
+        sync: false
+      - key: CORS_ORIGINS      # se cambia en el Paso 5 por tu URL de Vercel
+        value: http://localhost:5173
