@@ -25,6 +25,8 @@ export const MUSCLE_TO_SLUGS = {
   trapecio:   ["trapezius"],
   dorsal:     ["upper-back"],
   lumbar:     ["lower-back"],
+  aductores:  ["adductor"],
+  abductores: ["abductors"],
 };
 
 // Convierte una lista de ids del backend en slugs de la librería (sin duplicados).

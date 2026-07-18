@@ -203,16 +203,16 @@ def tapestry(db: Session = Depends(get_db),
 def muscle_week(db: Session = Depends(get_db),
                 user_id: str = Depends(get_current_user_id)):
     """
-    El mapa muscular de tu semana: cuánto has trabajado cada grupo en los
-    últimos 7 días. Suma las series de cada sesión y las reparte entre los
-    músculos del ejercicio (los primarios pesan doble que los secundarios).
-    El frontend lo pinta sobre el cuerpo anatómico: tu semana, en tu cuerpo.
+    Tu semana sobre el cuerpo, ahora con anatomía FINA: la carga se calcula
+    por músculo específico (dorsal ancho, deltoides lateral, sóleo…) y se
+    agrega a regiones solo para pintar el cuerpo dibujable.
     """
     from datetime import date as date_type, timedelta
     from collections import defaultdict
+    from app import muscles as muscle_lib
 
     start = date_type.today() - timedelta(days=6)
-    load = defaultdict(float)   # musculo -> "carga" (series ponderadas)
+    load = defaultdict(float)   # músculo FINO -> carga (series ponderadas)
 
     sessions = (db.query(models.Session)
                 .filter(models.Session.user_id == user_id,
@@ -229,12 +229,15 @@ def muscle_week(db: Session = Depends(get_db),
             if m: load[m] += n_sets * 0.5
 
     if not load:
-        return {"has_data": False, "primary": [], "secondary": [], "loads": {}}
+        return {"has_data": False, "primary": [], "secondary": [], "loads": {},
+                "names": {}, "sessions_count": 0}
 
-    # Umbral: la mitad del máximo separa "fuerte" (oro pleno) de "ligero" (tenue)
     top = max(load.values())
-    primary = [m for m, v in load.items() if v >= top * 0.5]
-    secondary = [m for m, v in load.items() if 0 < v < top * 0.5]
+    strong = [m for m, v in load.items() if v >= top * 0.5]
+    light = [m for m, v in load.items() if 0 < v < top * 0.5]
+    primary = muscle_lib.to_coarse(strong)
+    secondary = [c for c in muscle_lib.to_coarse(light) if c not in primary]
     return {"has_data": True, "primary": primary, "secondary": secondary,
             "loads": {k: round(v, 1) for k, v in load.items()},
+            "names": {k: muscle_lib.MUSCLES.get(k, k) for k in load},
             "sessions_count": len(sessions)}

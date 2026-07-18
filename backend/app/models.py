@@ -368,3 +368,19 @@ class PhysiqueGoal(Base):
     target_date = Column(Date, nullable=False)      # fecha objetivo
     weekly_target = Column(Integer, default=3)      # entrenos por semana esperados
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class WeekOverride(Base):
+    """
+    Excepción de UNA semana concreta sobre la plantilla: "esta semana, el
+    martes hago estos otros ejercicios". Si para (semana, día) hay filas
+    aquí, mandan ellas; si no, manda la plantilla (RoutineDay).
+    """
+    __tablename__ = "week_overrides"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    week_start = Column(Date, index=True, nullable=False)  # lunes de esa semana
+    weekday = Column(Integer, nullable=False)              # 0=lunes ... 6=domingo
+    exercise_id = Column(Integer, ForeignKey("exercises.id"), nullable=False)
+    order = Column(Integer, default=0)

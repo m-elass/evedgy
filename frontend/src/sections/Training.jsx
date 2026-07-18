@@ -1,16 +1,16 @@
 /*
- * sections/Training.jsx
- * ─────────────────────
- * El corazon de la app, conectado al backend. Tres vistas:
- *  1. Semana: navegas entre semanas y, por cada ejercicio de tu biblioteca,
- *     ves si tiene sesion esa semana o registras una nueva (3 series + sensaciones).
- *  2. Progreso: grafica de un ejercicio con metricas alternables (max/medio/volumen).
+ * sections/Training.jsx — EL ENTRENO POR DÍAS
+ * ───────────────────────────────────────────
+ * La semana desplegada en sus 7 días. Cada día es un desplegable con los
+ * ejercicios de ESA sesión (los que dicta tu plantilla, o la excepción de
+ * esta semana si la hay), y dentro registras las series de la sesión entera.
  *
- * Usa: api.listExercises, api.listSessions (filtrando por fechas),
- *      api.createSession, api.exerciseProgress.
+ * La plantilla se configura en la estrella Ejercicios; aquí se ENTRENA.
+ * Se conservan la sugerencia inteligente, el aviso de descarga, los discos,
+ * el temporizador de descanso y la celebración de récords.
  */
 import React, { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, TrendingUp, ArrowLeft, Calendar, NotebookPen, Sparkles, Award, Timer } from "lucide-react";
+import { ChevronLeft, ChevronRight, TrendingUp, ArrowLeft, Calendar, NotebookPen, Sparkles, Timer } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { api } from "../lib/api";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
@@ -21,60 +21,95 @@ import Celebration from "../components/Celebration";
 function startOfWeek(d) { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0,0,0,0); return x; }
 function ymd(d) { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`; }
 function fmtShort(iso) { const d = new Date(iso + "T00:00:00"); return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" }); }
+const DOW = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
 export default function Training() {
-  const [exercises, setExercises] = useState(null);
+  const [exercises, setExercises] = useState(null);  // biblioteca (para datos completos)
+  const [routine, setRoutine] = useState(null);      // la semana resuelta (7 días)
+  const [sessions, setSessions] = useState([]);
   const [progressOf, setProgressOf] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
-  const [sessions, setSessions] = useState([]);
 
   const weekStart = startOfWeek(new Date());
   weekStart.setDate(weekStart.getDate() + weekOffset * 7);
   const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6);
 
   useEffect(() => { api.listExercises().then(setExercises).catch(() => setExercises([])); }, []);
-  useEffect(() => { loadSessions(); }, [weekOffset]);
-  async function loadSessions() {
+  useEffect(() => { load(); }, [weekOffset]);
+  async function load() {
     try {
-      setSessions(await api.listSessions({ start: ymd(weekStart), end: ymd(weekEnd) }));
-    } catch { setSessions([]); }
+      const [r, s] = await Promise.all([
+        api.routineWeek(ymd(weekStart)),
+        api.listSessions({ start: ymd(weekStart), end: ymd(weekEnd) }),
+      ]);
+      setRoutine(r); setSessions(s);
+    } catch { setRoutine({ days: [] }); setSessions([]); }
   }
 
   if (progressOf) return <Progress ex={progressOf} onBack={() => setProgressOf(null)} />;
-  if (exercises === null) return (<><SectionHeader kicker="Cuerpo - Sesion" title="Entrenamiento" /><Loading /></>);
+  if (exercises === null || routine === null)
+    return (<><SectionHeader kicker="Cuerpo · Sesión" title="Entrenamiento" /><Loading /></>);
 
-  const label = weekOffset === 0 ? "Esta semana" : weekOffset === -1 ? "Semana pasada" : `Hace ${Math.abs(weekOffset)} semanas`;
+  const label = weekOffset === 0 ? "Esta semana"
+    : weekOffset === -1 ? "Semana pasada"
+    : weekOffset === 1 ? "Semana que viene"
+    : weekOffset < 0 ? `Hace ${-weekOffset} semanas` : `Dentro de ${weekOffset} semanas`;
+  const canLog = weekOffset === 0;                  // solo se registra la semana actual
+  const todayIdx = (new Date().getDay() + 6) % 7;   // 0=lunes
+  const byId = Object.fromEntries(exercises.map((e) => [e.id, e]));
 
   return (
     <div>
-      <SectionHeader kicker="Cuerpo - Sesion" title="Entrenamiento" />
+      <SectionHeader kicker="Cuerpo · Sesión" title="Entrenamiento" />
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.inkSoft,
-        borderRadius: 10, padding: "10px 12px", marginBottom: 16, border: "1px solid #2e2a25" }}>
+        borderRadius: 12, padding: "10px 12px", marginBottom: 16, border: `1px solid ${C.paperEdge}` }}>
         <button onClick={() => setWeekOffset(weekOffset - 1)} style={navArrow}><ChevronLeft size={18} /></button>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: FONT_BODY, fontSize: 14, color: C.paper, fontWeight: 600 }}>{label}</div>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 14, color: C.sepiaInk, fontWeight: 600 }}>{label}</div>
           <div style={{ fontFamily: FONT_BODY, fontSize: 11.5, color: C.sepia, marginTop: 1 }}>{fmtShort(ymd(weekStart))} – {fmtShort(ymd(weekEnd))}</div>
         </div>
-        <button onClick={() => setWeekOffset(Math.min(0, weekOffset + 1))} disabled={weekOffset >= 0}
-          style={{ ...navArrow, opacity: weekOffset >= 0 ? 0.3 : 1 }}><ChevronRight size={18} /></button>
+        <button onClick={() => setWeekOffset(weekOffset + 1)} style={navArrow}><ChevronRight size={18} /></button>
       </div>
 
-      {weekOffset < 0 && (
+      {!canLog && (
         <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 14, color: C.sepia, fontFamily: FONT_BODY, fontSize: 12.5 }}>
-          <Calendar size={13} /> Viendo una semana pasada
+          <Calendar size={13} /> {weekOffset < 0 ? "Viendo una semana pasada" : "Viendo el plan de una semana futura"}
         </div>
       )}
 
       {exercises.length === 0 ? (
-        <Empty text="Primero anade ejercicios en la seccion Ejercicios. Luego podras registrar tus series aqui." />
+        <Empty text="Primero crea ejercicios y tu plantilla semanal en la estrella Ejercicios. Aquí registrarás cada sesión." />
       ) : (
-        exercises.map((ex, i) => {
-          const sess = sessions.find((s) => s.exercise_id === ex.id);
+        (routine.days || []).map((day) => {
+          const dayDate = new Date(weekStart); dayDate.setDate(dayDate.getDate() + day.weekday);
+          const iso = ymd(dayDate);
+          const plan = day.exercises;
+          const done = plan.filter((p) => sessions.some((s) => s.exercise_id === p.id && s.date === iso)).length;
+          const isToday = weekOffset === 0 && day.weekday === todayIdx;
+          const subtitle = plan.length === 0 ? "Descanso"
+            : `${plan.length} ejercicio${plan.length > 1 ? "s" : ""} · ${done} hecho${done !== 1 ? "s" : ""}${day.overridden ? " · semana modificada" : ""}`;
           return (
-            <ExerciseRow key={ex.id} ex={ex} sess={sess} defaultOpen={i === 0}
-              weekStart={ymd(weekStart)} readOnly={weekOffset < 0}
-              onSaved={loadSessions} onProgress={() => setProgressOf(ex)} />
+            <Collapsible key={day.weekday}
+              title={`${DOW[day.weekday]} ${dayDate.getDate()}${isToday ? " · hoy" : ""}`}
+              subtitle={subtitle} defaultOpen={isToday}
+              accent={plan.length === 0 ? C.paperEdge : done === plan.length ? C.olive : day.overridden ? C.rust : C.sepia}>
+              {plan.length === 0 ? (
+                <p style={{ margin: "2px 0 8px", fontFamily: FONT_BODY, fontSize: 13, color: C.sepia, lineHeight: 1.5 }}>
+                  Día de descanso. Si quieres entrenar este día, configúralo en la estrella Ejercicios.
+                </p>
+              ) : (
+                plan.map((p) => {
+                  const ex = byId[p.id];
+                  if (!ex) return null;
+                  const sess = sessions.find((s) => s.exercise_id === p.id && s.date === iso);
+                  return (
+                    <ExerciseRow key={p.id} ex={ex} sess={sess} date={iso}
+                      readOnly={!canLog} onSaved={load} onProgress={() => setProgressOf(ex)} />
+                  );
+                })
+              )}
+            </Collapsible>
           );
         })
       )}
@@ -82,18 +117,16 @@ export default function Training() {
   );
 }
 
-function ExerciseRow({ ex, sess, defaultOpen, weekStart, readOnly, onSaved, onProgress }) {
-  // 3 series por defecto; si hay sesion, mostramos sus datos
+function ExerciseRow({ ex, sess, date, readOnly, onSaved, onProgress }) {
   const initial = sess
     ? sess.sets.map((s) => ({ reps: s.reps, weight: s.weight }))
     : [{ reps: "", weight: "" }, { reps: "", weight: "" }, { reps: "", weight: "" }];
   const [sets, setSets] = useState(initial);
   const [feelings, setFeelings] = useState(sess ? sess.feelings : "");
-  const [date, setDate] = useState(weekStart);
-  const [tip, setTip] = useState(null);   // sugerencia de proxima serie
-  const [deload, setDeload] = useState(null); // aviso de descarga si hay estancamiento
+  const [tip, setTip] = useState(null);
+  const [deload, setDeload] = useState(null);
+  const [celebrate, setCelebrate] = useState(null);
 
-  // Si toca registrar (sin sesion, semana actual), pedimos la sugerencia del backend.
   const canSuggest = !sess && !readOnly;
   useEffect(() => {
     if (!canSuggest) return;
@@ -104,43 +137,31 @@ function ExerciseRow({ ex, sess, defaultOpen, weekStart, readOnly, onSaved, onPr
   function setField(i, field, val) {
     setSets((prev) => prev.map((s, j) => (j === i ? { ...s, [field]: val } : s)));
   }
-
-  // Rellena las 3 series con el peso/reps sugeridos (el usuario puede ajustar luego).
   function applySuggestion() {
     if (!tip?.suggestion) return;
     const { weight, reps } = tip.suggestion;
     setSets([{ reps, weight }, { reps, weight }, { reps, weight }]);
   }
 
-  const [celebrate, setCelebrate] = useState(null); // {exercise, oneRm} al batir récord
-
   async function save() {
     const payload = {
-      exercise_id: ex.id,
-      date,
-      feelings,
+      exercise_id: ex.id, date, feelings,
       sets: sets.map((s, idx) => ({ set_number: idx + 1, reps: parseInt(s.reps) || 0, weight: parseFloat(s.weight) || 0 })),
     };
     const res = await api.createSession(payload);
     if (res?.new_record) {
-      // ¡Récord batido! Celebración en oro antes de refrescar la lista.
       if (navigator.vibrate) navigator.vibrate([60, 40, 120]);
       setCelebrate({ exercise: res.exercise_name || ex.name, oneRm: res.record_1rm });
-    } else {
-      onSaved();
-    }
+    } else { onSaved(); }
   }
 
   return (
-    <Collapsible title={ex.name} subtitle={sess ? `Hecho - max ${Math.max(...sess.sets.map((s) => s.weight))}kg` : "Sin registrar"}
-      defaultOpen={defaultOpen} accent={sess ? C.olive : C.paperEdge}>
+    <Collapsible title={ex.name}
+      subtitle={sess ? `Hecho · máx ${Math.max(...sess.sets.map((s) => s.weight))}kg` : readOnly ? "Planificado" : "Sin registrar"}
+      accent={sess ? C.olive : C.paperEdge}>
       <Celebration show={!!celebrate} exercise={celebrate?.exercise} oneRm={celebrate?.oneRm}
         onClose={() => { setCelebrate(null); onSaved(); }} />
-      {!sess && !readOnly && (
-        <Field label="Fecha de la sesion" value={date} onChange={(e) => setDate(e.target.value)} />
-      )}
 
-      {/* Sugerencia inteligente: solo cuando toca registrar y hay historial */}
       {canSuggest && tip?.has_history && tip.suggestion && (
         <div style={{ background: "rgba(166,116,30,0.10)", borderRadius: 10, padding: "12px 14px",
           marginBottom: 14, position: "relative", overflow: "hidden" }}>
@@ -164,7 +185,6 @@ function ExerciseRow({ ex, sess, defaultOpen, weekStart, readOnly, onSaved, onPr
         </div>
       )}
 
-      {/* Aviso de descarga si hay estancamiento */}
       {canSuggest && deload?.suggest_deload && (
         <div style={{ background: "rgba(127,213,232,0.08)", borderRadius: 10, padding: "12px 14px",
           marginBottom: 14, borderLeft: `3px solid ${C.rust}` }}>
@@ -195,13 +215,13 @@ function ExerciseRow({ ex, sess, defaultOpen, weekStart, readOnly, onSaved, onPr
       </div>
 
       <Field label="Sensaciones" value={feelings} onChange={(e) => setFeelings(e.target.value)}
-        readOnly={!!sess || readOnly} multiline placeholder="Como te has sentido en este ejercicio?" />
+        readOnly={!!sess || readOnly} multiline placeholder="¿Cómo te has sentido en este ejercicio?" />
 
       {ex.notes && (
-        <div style={{ background: "#EFE9DB", borderRadius: 7, padding: "11px 13px", borderLeft: `3px solid ${C.olive}`, marginBottom: 12 }}>
+        <div style={{ background: "rgba(232,184,75,0.08)", borderRadius: 8, padding: "11px 13px", borderLeft: `3px solid ${C.olive}`, marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
             <NotebookPen size={13} color={C.olive} />
-            <span style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase", color: C.olive, fontWeight: 600 }}>Notas de ejecucion</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase", color: C.olive, fontWeight: 600 }}>Notas de ejecución</span>
           </div>
           <p style={{ margin: 0, fontFamily: FONT_BODY, fontSize: 13.5, color: C.sepiaInk, lineHeight: 1.55 }}>{ex.notes}</p>
         </div>
@@ -212,7 +232,7 @@ function ExerciseRow({ ex, sess, defaultOpen, weekStart, readOnly, onSaved, onPr
       {!sess && !readOnly && <div style={{ marginBottom: 12 }}><SolidBtn label="Guardar series" onClick={save} /></div>}
 
       <button onClick={onProgress} style={{ display: "inline-flex", alignItems: "center", gap: 7,
-        background: C.sepiaInk, color: C.cream, border: "none", borderRadius: 8, padding: "9px 13px",
+        background: C.inkSoft, color: C.sepiaInk, border: `1px solid ${C.paperEdge}`, borderRadius: 999, padding: "9px 15px",
         fontFamily: FONT_BODY, fontSize: 12.5, cursor: "pointer" }}>
         <TrendingUp size={14} /> Ver progreso
       </button>
@@ -228,8 +248,8 @@ function Progress({ ex, onBack }) {
   if (!data) return <Loading />;
 
   const chart = data.points.map((p) => ({ fecha: fmtShort(p.date), valor: p[metric] }));
-  const unit = metric === "volume" ? "kg-reps" : "kg";
-  const mlabel = { max: "Peso maximo", avg: "Peso medio", volume: "Volumen total" }[metric];
+  const unit = metric === "volume" ? "kg·reps" : "kg";
+  const mlabel = { max: "Peso máximo", avg: "Peso medio", volume: "Volumen total" }[metric];
 
   return (
     <div>
@@ -240,25 +260,25 @@ function Progress({ ex, onBack }) {
       <SectionHeader kicker="Progreso" title={ex.name} />
 
       <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-        {[["max", "Maximo"], ["avg", "Medio"], ["volume", "Volumen"]].map(([k, l]) => (
-          <button key={k} onClick={() => setMetric(k)} style={{ flex: 1, padding: "8px 4px", borderRadius: 7, cursor: "pointer",
+        {[["max", "Máximo"], ["avg", "Medio"], ["volume", "Volumen"]].map(([k, l]) => (
+          <button key={k} onClick={() => setMetric(k)} style={{ flex: 1, padding: "8px 4px", borderRadius: 8, cursor: "pointer",
             fontFamily: FONT_BODY, fontSize: 12.5, background: metric === k ? C.olive : C.inkSoft,
-            color: metric === k ? C.cream : C.sepia, border: `1px solid ${metric === k ? C.olive : "#332f2a"}`,
-            fontWeight: metric === k ? 600 : 400 }}>{l}</button>
+            color: metric === k ? "#0B1B33" : C.sepia, border: `1px solid ${metric === k ? C.olive : C.paperEdge}`,
+            fontWeight: metric === k ? 700 : 400 }}>{l}</button>
         ))}
       </div>
 
       {chart.length === 0 ? (
-        <Empty text="Aun no hay sesiones de este ejercicio. Registra alguna y veras aqui tu progreso." />
+        <Empty text="Aún no hay sesiones de este ejercicio. Registra alguna y verás aquí tu progreso." />
       ) : (
-        <div style={{ background: C.paper, borderRadius: 10, padding: "16px 12px 12px", border: `1px solid ${C.paperEdge}` }}>
-          <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.sepia, marginBottom: 10, paddingLeft: 6 }}>{mlabel} ({unit}) - {chart.length} sesiones</div>
+        <div style={{ background: C.paper, borderRadius: 14, padding: "16px 12px 12px", border: `1px solid ${C.paperEdge}` }}>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.sepia, marginBottom: 10, paddingLeft: 6 }}>{mlabel} ({unit}) · {chart.length} sesiones</div>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chart} margin={{ top: 5, right: 12, left: -18, bottom: 0 }}>
               <CartesianGrid stroke={C.paperEdge} strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="fecha" tick={{ fontSize: 11, fill: C.sepia }} stroke={C.paperEdge} />
               <YAxis tick={{ fontSize: 11, fill: C.sepia }} stroke={C.paperEdge} />
-              <Tooltip contentStyle={{ background: C.sepiaInk, border: "none", borderRadius: 8, fontSize: 12, color: C.cream }} labelStyle={{ color: C.oliveSoft }} />
+              <Tooltip contentStyle={{ background: C.inkSoft, border: "none", borderRadius: 8, fontSize: 12, color: C.sepiaInk }} labelStyle={{ color: C.oliveSoft }} />
               <Line type="monotone" dataKey="valor" stroke={C.olive} strokeWidth={2.5} dot={{ fill: C.olive, r: 4 }} activeDot={{ r: 6 }} />
             </LineChart>
           </ResponsiveContainer>
@@ -268,20 +288,15 @@ function Progress({ ex, onBack }) {
   );
 }
 
-const navArrow = { background: "transparent", border: "none", color: C.paper, cursor: "pointer", padding: 8, display: "flex", alignItems: "center" };
-const inputData = { width: "100%", boxSizing: "border-box", background: "#F3EFE4", border: `1px solid ${C.paperEdge}`,
-  borderRadius: 7, padding: "9px 11px", fontFamily: FONT_BODY, fontSize: 16, color: C.sepiaInk, textAlign: "center", fontWeight: 600 };
+const navArrow = { background: "transparent", border: "none", color: C.sepiaInk, cursor: "pointer", padding: 8, display: "flex", alignItems: "center" };
+const inputData = { width: "100%", boxSizing: "border-box", background: C.inkSoft, border: `1px solid ${C.paperEdge}`,
+  borderRadius: 8, padding: "9px 11px", fontFamily: FONT_BODY, fontSize: 16, color: C.sepiaInk, textAlign: "center", fontWeight: 600 };
 const unitLabel = { display: "block", textAlign: "center", fontFamily: FONT_BODY, fontSize: 10, color: C.sepia, marginTop: 3, letterSpacing: ".05em", textTransform: "uppercase" };
 
-
-/*
- * RestTimer — el descanso entre series, medido.
- * Eliges 1:00 / 1:30 / 2:00 / 3:00; una barra dorada se vacía con el tiempo y
- * el móvil vibra al terminar. Sin salir de la serie, sin apps aparte.
- */
+/* RestTimer — el descanso entre series, medido. */
 function RestTimer() {
-  const [total, setTotal] = useState(0);   // segundos elegidos
-  const [left, setLeft] = useState(0);     // segundos restantes
+  const [total, setTotal] = useState(0);
+  const [left, setLeft] = useState(0);
 
   useEffect(() => {
     if (left <= 0) return;
@@ -324,7 +339,7 @@ function RestTimer() {
         <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
           {[60, 90, 120, 180].map((n) => (
             <button key={n} onClick={() => { setTotal(n); setLeft(n); }} style={{ flex: 1, padding: "8px 0",
-              borderRadius: 7, cursor: "pointer", fontFamily: FONT_BODY, fontSize: 12.5, fontWeight: 600,
+              borderRadius: 8, cursor: "pointer", fontFamily: FONT_BODY, fontSize: 12.5, fontWeight: 600,
               background: C.paper, color: C.sepiaInk, border: `1px solid ${C.paperEdge}` }}>{mmss(n)}</button>
           ))}
         </div>
@@ -333,12 +348,7 @@ function RestTimer() {
   );
 }
 
-
-/*
- * PlateCalc — la calculadora de discos.
- * Toma el mayor peso escrito en las series y te dice qué discos poner a cada
- * lado de una barra de 20kg. Lo que uno hace de cabeza en el gimnasio, hecho.
- */
+/* PlateCalc — qué discos poner a cada lado de una barra de 20kg. */
 function PlateCalc({ sets }) {
   const target = Math.max(...sets.map((s) => parseFloat(s.weight) || 0));
   if (!target || target <= 20) return null;

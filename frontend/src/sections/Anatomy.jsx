@@ -46,7 +46,7 @@ export default function Anatomy() {
               const strong = data.primary.includes(m);
               return (
                 <div key={m} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
-                  <span style={{ width: 92, fontFamily: FONT_BODY, fontSize: 12, color: C.sepiaInk }}>{NAMES[m] || m}</span>
+                  <span style={{ width: 92, fontFamily: FONT_BODY, fontSize: 12, color: C.sepiaInk }}>{(data.names && data.names[m]) || NAMES[m] || m}</span>
                   <div style={{ flex: 1, height: 6, background: C.paperEdge, borderRadius: 6, overflow: "hidden" }}>
                     <div style={{ width: `${(v / max) * 100}%`, height: "100%",
                       background: strong ? GRAD.gold : "rgba(232,184,75,.4)" }} />

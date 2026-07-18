@@ -58,13 +58,47 @@ def list_exercises(
     db: Session = Depends(get_db),
     user_id: str = Depends(get_current_user_id),
 ):
-    """Lista todos los ejercicios del usuario actual."""
-    return (
+    """
+    Lista los ejercicios del usuario. De paso, AUTOCURACIÓN: los ejercicios
+    guardados con el sistema muscular antiguo (ids genéricos como "pecho")
+    se reanalizan con la base de conocimiento nueva y quedan corregidos
+    (así "Jalón al pecho" deja de figurar como pecho sin que hagas nada).
+    """
+    items = (
         db.query(models.Exercise)
         .filter(models.Exercise.user_id == user_id)
         .order_by(models.Exercise.name)
         .all()
     )
+    changed = False
+    for ex in items:
+        stored = [m for m in (ex.primary_muscles or "").split(",") if m]
+        legacy = (not stored) or all(m in muscle_lib.LEGACY_IDS for m in stored)
+        if legacy:
+            p, sec = muscle_lib.detect_muscles(ex.name)
+            if p and set(p) != set(stored):
+                ex.primary_muscles = ",".join(p)
+                ex.secondary_muscles = ",".join(sec)
+                changed = True
+    if changed:
+        db.commit()
+    return items
+
+
+@router.post("/{exercise_id}/reanalyze", response_model=schemas.ExerciseOut)
+def reanalyze_exercise(
+    exercise_id: int,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    """Recalcula los músculos de un ejercicio con la base de conocimiento."""
+    exercise = _get_owned(db, exercise_id, user_id)
+    p, s = muscle_lib.detect_muscles(exercise.name)
+    exercise.primary_muscles = ",".join(p)
+    exercise.secondary_muscles = ",".join(s)
+    db.commit()
+    db.refresh(exercise)
+    return exercise
 
 
 @router.get("/{exercise_id}", response_model=schemas.ExerciseOut)

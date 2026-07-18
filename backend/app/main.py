@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
 from app.routers import (
+    routine,
     exercises, sessions, daily_tasks, random_tasks,
     notes, documents, sleep, goals, theme, insights, deliberate, summary, profile, physique, social,
 )
@@ -70,3 +71,4 @@ app.include_router(summary.router)
 app.include_router(profile.router)
 app.include_router(physique.router)
 app.include_router(social.router)
+app.include_router(routine.router)

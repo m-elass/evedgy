@@ -441,3 +441,8 @@ class FriendRankOut(BaseModel):
     badge_name: str
     badge_color: str
     tier: str = ""
+
+
+class RoutineDayIn(BaseModel):
+    """Los ejercicios (en orden) que ocupan un día de la rutina."""
+    exercise_ids: list[int]

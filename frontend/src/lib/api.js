@@ -111,6 +111,17 @@ export const api = {
   weekSummary: () => request("/summary/week"),
   muscleWeek: () => request("/insights/muscle-week"),
 
+  // Rutina semanal: plantilla por defecto + excepciones de semanas concretas
+  routineWeek: (start) => request(`/routine/week/${start}`),
+  setTemplateDay: (weekday, exercise_ids) =>
+    request(`/routine/template/${weekday}`, { method: "PUT", body: { exercise_ids } }),
+  setWeekDay: (start, weekday, exercise_ids) =>
+    request(`/routine/week/${start}/${weekday}`, { method: "PUT", body: { exercise_ids } }),
+  clearWeekDay: (start, weekday) =>
+    request(`/routine/week/${start}/${weekday}`, { method: "DELETE" }),
+  promoteWeek: (start) => request(`/routine/week/${start}/promote`, { method: "POST" }),
+  reanalyzeExercise: (id) => request(`/exercises/${id}/reanalyze`, { method: "POST" }),
+
   // ── Perfil y rangos ──
   getProfile: () => request("/profile"),
   updateProfile: (data) => request("/profile", { method: "PATCH", body: data }),
