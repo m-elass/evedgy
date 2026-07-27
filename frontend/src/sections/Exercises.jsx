@@ -15,10 +15,11 @@
  *    fino (dorsal ancho, deltoides lateral, sóleo…) sobre el cuerpo.
  */
 import React, { useEffect, useState } from "react";
-import { NotebookPen, Trash2, PersonStanding, ChevronLeft, ChevronRight, RefreshCw, X, Crown } from "lucide-react";
+import { NotebookPen, Trash2, PersonStanding, ChevronLeft, ChevronRight, RefreshCw, X, Crown, Search, Check } from "lucide-react";
 import { api } from "../lib/api";
 import { C, FONT_BODY, FONT_DISPLAY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader, Collapsible, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
+import { HelpDot } from "../components/Help";
 import BodyMap from "../components/BodyMap";
 
 function startOfWeek(d) { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0,0,0,0); return x; }
@@ -35,6 +36,9 @@ export default function Exercises() {
   const [permanent, setPermanent] = useState(false); // el interruptor
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
+  const [known, setKnown] = useState([]);      // catálogo que la app reconoce
+  const [preview, setPreview] = useState(null); // músculos detectados al escribir
+  const [rebuilding, setRebuilding] = useState(false);
 
   const weekStart = startOfWeek(new Date());
   weekStart.setDate(weekStart.getDate() + weekOffset * 7);
@@ -42,6 +46,16 @@ export default function Exercises() {
   const wsISO = ymd(weekStart);
 
   useEffect(() => { loadLib(); }, []);
+  // El catálogo de ejercicios reconocidos (para sugerir mientras escribes)
+  useEffect(() => { api.knownCatalog().then((r) => setKnown(r.exercises || [])).catch(() => {}); }, []);
+  // Vista previa de los músculos: se consulta al dejar de teclear
+  useEffect(() => {
+    if (!adding || name.trim().length < 3) { setPreview(null); return; }
+    const t = setTimeout(() => {
+      api.analyzeName(name.trim()).then(setPreview).catch(() => setPreview(null));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [name, adding]);
   useEffect(() => { loadRoutine(); }, [weekOffset]);
   async function loadLib() { try { setItems(await api.listExercises()); } catch { setItems([]); } }
   async function loadRoutine() { try { setRoutine(await api.routineWeek(wsISO)); } catch { setRoutine({ days: [] }); } }
@@ -64,6 +78,10 @@ export default function Exercises() {
   }
   async function restoreDay(weekday) { await api.clearWeekDay(wsISO, weekday); loadRoutine(); }
   async function promote() { await api.promoteWeek(wsISO); loadRoutine(); }
+  async function rebuildMuscles() {
+    setRebuilding(true);
+    try { await api.reanalyzeAll(); await loadLib(); } finally { setRebuilding(false); }
+  }
 
   if (items === null || routine === null)
     return (<><SectionHeader kicker="Cuerpo · Taller" title="Ejercicios" /><Loading /></>);
@@ -80,7 +98,11 @@ export default function Exercises() {
       {/* ═══ 1. LA PLANTILLA SEMANAL ═══ */}
       <div style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase",
         fontWeight: 700, background: GRAD.gold, WebkitBackgroundClip: "text", backgroundClip: "text",
-        color: "transparent", width: "fit-content", marginBottom: 10 }}>Tu semana de entrenamiento</div>
+        color: "transparent", width: "fit-content" }}>Tu semana de entrenamiento</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 2, marginBottom: 10, marginTop: -4 }}>
+        <HelpDot topic="week_template" size={15} label="¿Qué es la plantilla semanal?" />
+        <span style={{ fontFamily: FONT_BODY, fontSize: 11.5, color: C.sepia }}>qué es esto</span>
+      </div>
 
       {/* El interruptor de cambios permanentes */}
       <button onClick={() => setPermanent(!permanent)} style={{ width: "100%", display: "flex", alignItems: "center",
@@ -95,7 +117,8 @@ export default function Exercises() {
         </span>
         <span style={{ flex: 1 }}>
           <span style={{ display: "block", fontFamily: FONT_BODY, fontSize: 13.5, fontWeight: 700,
-            color: permanent ? C.olive : C.sepiaInk }}>Cambios permanentes {permanent ? "activados" : "desactivados"}</span>
+            color: permanent ? C.olive : C.sepiaInk }}>Cambios permanentes {permanent ? "activados" : "desactivados"}
+            <HelpDot topic="permanent_switch" size={14} label="¿Qué hace este interruptor?" /></span>
           <span style={{ display: "block", fontFamily: FONT_BODY, fontSize: 11.5, color: C.sepia, marginTop: 2, lineHeight: 1.45 }}>
             {permanent ? "Lo que edites cambia la plantilla de TODAS las semanas."
               : "Lo que edites vale solo para la semana que estás viendo."}
@@ -120,6 +143,9 @@ export default function Exercises() {
           background: GRAD.gold, border: "none", borderRadius: 12, padding: "13px 16px", marginBottom: 14,
           cursor: "pointer", boxShadow: GLOW.gold }}>
           <Crown size={17} color="#0B1B33" />
+          <span onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex", color: "#0B1B33" }}>
+            <HelpDot topic="promote_week" size={15} label="¿Qué hace este botón?" />
+          </span>
           <span style={{ flex: 1, textAlign: "left" }}>
             <span style={{ display: "block", fontFamily: FONT_BODY, fontSize: 13.5, fontWeight: 700, color: "#0B1B33" }}>
               Hacer de esta semana la nueva plantilla
@@ -149,15 +175,69 @@ export default function Exercises() {
       {adding ? (
         <div style={{ background: C.paper, borderRadius: 14, padding: 16, marginBottom: 14,
           border: `1px solid ${C.paperEdge}` }}>
-          <Field label="Nombre del ejercicio" value={name} onChange={(e) => setName(e.target.value)}
-            placeholder="Jalón al pecho" />
+          <label style={{ display: "block", fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".08em",
+            textTransform: "uppercase", color: C.sepia, marginBottom: 6 }}>Nombre del ejercicio</label>
+          <div style={{ position: "relative", marginBottom: 12 }}>
+            <Search size={15} color={C.sepia} style={{ position: "absolute", left: 13, top: 14 }} />
+            <input list="known-exercises" value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="Escribe o elige: jalón, katana, hip thrust…" autoFocus
+              style={{ width: "100%", boxSizing: "border-box", background: C.inkSoft,
+                border: `1px solid ${C.paperEdge}`, borderRadius: 12, padding: "12px 14px 12px 36px",
+                fontFamily: FONT_BODY, fontSize: 15, color: C.sepiaInk, outline: "none" }} />
+            <datalist id="known-exercises">
+              {known.map((k) => (<option key={k.name} value={k.name} />))}
+            </datalist>
+          </div>
+
+          {/* Vista previa: qué músculos ha reconocido, antes de crear nada */}
+          {preview && (
+            <div style={{ background: preview.recognized ? "rgba(232,184,75,.10)" : C.inkSoft,
+              border: `1px solid ${preview.recognized ? "rgba(232,184,75,.35)" : C.paperEdge}`,
+              borderRadius: 12, padding: "11px 13px", marginBottom: 12 }}>
+              {preview.recognized ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
+                    <Check size={13} color={C.olive} />
+                    <span style={{ fontFamily: FONT_BODY, fontSize: 10.5, letterSpacing: ".1em",
+                      textTransform: "uppercase", fontWeight: 700, color: C.olive }}>Ejercicio reconocido</span>
+                  </div>
+                  <div style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: C.sepiaInk, lineHeight: 1.55 }}>
+                    {preview.primary_names.join(" · ")}
+                  </div>
+                  {preview.secondary_names.length > 0 && (
+                    <div style={{ fontFamily: FONT_BODY, fontSize: 11.5, color: C.sepia, lineHeight: 1.5, marginTop: 4 }}>
+                      También: {preview.secondary_names.join(" · ")}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: C.sepia, lineHeight: 1.5 }}>
+                  No reconozco ese nombre todavía. Puedes crearlo igual y asignar los músculos a mano.
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={{ display: "flex", gap: 8 }}>
             <SolidBtn label="Crear" onClick={create} />
-            <button onClick={() => { setAdding(false); setName(""); }} style={ghost}>Cancelar</button>
+            <button onClick={() => { setAdding(false); setName(""); setPreview(null); }} style={ghost}>Cancelar</button>
           </div>
         </div>
       ) : (
-        <div style={{ marginBottom: 14 }}><AddBtn label="Añadir ejercicio" onClick={() => setAdding(true)} /></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+          <AddBtn label="Añadir ejercicio" onClick={() => setAdding(true)} />
+          {items.length > 0 && (
+            <button onClick={rebuildMuscles} disabled={rebuilding} style={{ display: "inline-flex",
+              alignItems: "center", gap: 7, background: "none", border: `1px solid ${C.paperEdge}`,
+              color: C.sepia, borderRadius: 999, padding: "10px 15px", fontFamily: FONT_BODY,
+              fontSize: 12.5, cursor: rebuilding ? "default" : "pointer" }}>
+              <RefreshCw size={13} /> {rebuilding ? "Recalculando…" : "Recalcular músculos"}
+            </button>
+          )}
+          {items.length > 0 && (
+            <HelpDot topic="reanalyze" size={15} label="¿Qué hace recalcular músculos?" />
+          )}
+        </div>
       )}
 
       {items.length === 0 && !adding && (
@@ -242,6 +322,7 @@ function ExerciseCard({ ex, onChanged }) {
           <NotebookPen size={13} color={C.olive} />
           <span style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".08em",
             textTransform: "uppercase", color: C.olive, fontWeight: 600 }}>Notas de ejecución</span>
+          <HelpDot topic="exercise_notes" size={13} />
         </div>
         <Field value={notes} multiline
           placeholder="Apunta aquí cómo mejorar la técnica de este ejercicio…"
@@ -268,6 +349,7 @@ function ExerciseCard({ ex, onChanged }) {
             <span style={{ fontFamily: FONT_BODY, fontSize: 13.5, flex: 1, textAlign: "left" }}>
               {showBody ? "Ocultar músculos" : "Ver músculos que trabaja"}
             </span>
+            <HelpDot topic="muscle_body" size={14} label="¿De dónde salen estos músculos?" />
             <span style={{ fontSize: 12, color: C.sepia }}>{showBody ? "▴" : "▾"}</span>
           </button>
 

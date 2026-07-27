@@ -10,6 +10,7 @@
 import React from "react";
 import { Trophy } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD } from "../lib/theme";
+import { HelpDot } from "./Help";
 
 export default function Celebration({ show, exercise, oneRm, onClose }) {
   if (!show) return null;
@@ -54,7 +55,7 @@ export default function Celebration({ show, exercise, oneRm, onClose }) {
         <div style={{ fontFamily: FONT_BODY, fontSize: 12, letterSpacing: ".28em",
           textTransform: "uppercase", fontWeight: 700, marginBottom: 8,
           background: GRAD.gold, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
-          Nuevo récord
+          Nuevo récord{" "}<HelpDot topic="record_celebration" size={12} />
         </div>
         <div style={{ fontFamily: FONT_DISPLAY, fontSize: 34, fontWeight: 700, color: C.sepiaInk, lineHeight: 1.15 }}>
           {exercise}

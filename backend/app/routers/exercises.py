@@ -53,6 +53,46 @@ def muscles_catalog(user_id: str = Depends(get_current_user_id)):
     return {"muscles": muscle_lib.MUSCLES}
 
 
+@router.get("/catalog/known")
+def known_catalog(user_id: str = Depends(get_current_user_id)):
+    """
+    Catálogo de ejercicios que la app reconoce con seguridad. El frontend lo
+    usa para autocompletar: escribiendo dos letras aparecen las sugerencias,
+    y al elegir una, los músculos salen exactos.
+    """
+    out = []
+    for name in muscle_lib.CATALOG:
+        d = muscle_lib.describe(name)
+        out.append({"name": name, "primary": d["primary_names"],
+                    "secondary": d["secondary_names"], "regions": d["regions"]})
+    return {"exercises": out, "count": len(out)}
+
+
+@router.get("/analyze")
+def analyze_name(name: str, user_id: str = Depends(get_current_user_id)):
+    """Vista previa: qué músculos detecta la app para un nombre, sin crear nada."""
+    return muscle_lib.describe(name)
+
+
+@router.post("/reanalyze-all")
+def reanalyze_all(
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    """Recalcula los músculos de TODOS tus ejercicios con la base actual."""
+    items = (db.query(models.Exercise)
+             .filter(models.Exercise.user_id == user_id).all())
+    n = 0
+    for ex in items:
+        p, sec = muscle_lib.detect_muscles(ex.name)
+        if p:
+            ex.primary_muscles = ",".join(p)
+            ex.secondary_muscles = ",".join(sec)
+            n += 1
+    db.commit()
+    return {"ok": True, "updated": n, "total": len(items)}
+
+
 @router.get("", response_model=list[schemas.ExerciseOut])
 def list_exercises(
     db: Session = Depends(get_db),
@@ -73,8 +113,11 @@ def list_exercises(
     changed = False
     for ex in items:
         stored = [m for m in (ex.primary_muscles or "").split(",") if m]
-        legacy = (not stored) or all(m in muscle_lib.LEGACY_IDS for m in stored)
-        if legacy:
+        # "Caducado" = sin músculos, o con ids de una versión anterior de la
+        # anatomía que ya no existen. Si los ids son válidos, NO se tocan:
+        # así una edición manual tuya nunca se sobrescribe sola.
+        stale = (not stored) or any(m not in muscle_lib.FINE for m in stored)
+        if stale:
             p, sec = muscle_lib.detect_muscles(ex.name)
             if p and set(p) != set(stored):
                 ex.primary_muscles = ",".join(p)

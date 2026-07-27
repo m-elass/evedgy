@@ -13,6 +13,7 @@
 import React, { useState } from "react";
 import { ChevronRight, Plus } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
+import { HelpDot, useSectionHelp } from "./Help";
 
 // La superficie con profundidad que comparten las tarjetas.
 export const SURFACE = {
@@ -72,7 +73,11 @@ export function Field({ label, value, onChange, placeholder, multiline, readOnly
   );
 }
 
-export function SectionHeader({ kicker, title, right }) {
+export function SectionHeader({ kicker, title, right, help }) {
+  // El icono de ayuda sale solo: la sección que se está viendo la sabe el
+  // contexto, así que ninguna sección tiene que acordarse de pedirlo.
+  const { section } = useSectionHelp();
+  const topic = help || section;
   return (
     <div style={{ marginBottom: 26 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
@@ -82,7 +87,11 @@ export function SectionHeader({ kicker, title, right }) {
             background: GRAD.gold, WebkitBackgroundClip: "text", backgroundClip: "text",
             color: "transparent", width: "fit-content" }}>{kicker}</div>
           <h1 style={{ fontFamily: FONT_DISPLAY, fontSize: 34, color: C.sepiaInk, margin: 0,
-            fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.08 }}>{title}</h1>
+            fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.08,
+            display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
+            {title}
+            <HelpDot topic={topic} size={20} label={`¿Para qué sirve ${title}?`} />
+          </h1>
         </div>
         {right}
       </div>

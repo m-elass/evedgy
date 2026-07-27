@@ -15,6 +15,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { api } from "../lib/api";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader, Collapsible, Field, SolidBtn, Loading, Empty } from "../components/ui";
+import { HelpDot } from "../components/Help";
 import Celebration from "../components/Celebration";
 
 // ── utilidades de fecha ───────────────────────────────────
@@ -172,6 +173,7 @@ function ExerciseRow({ ex, sess, date, readOnly, onSaved, onProgress }) {
               fontWeight: 700, background: GRAD.gold, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
               Sugerencia de hoy
             </span>
+            <HelpDot topic="next_set" size={14} label="¿Cómo se calcula la sugerencia?" />
           </div>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, color: C.sepiaInk, fontWeight: 600, marginBottom: 2 }}>
             {tip.suggestion.weight} kg × {tip.suggestion.reps} reps
@@ -189,7 +191,8 @@ function ExerciseRow({ ex, sess, date, readOnly, onSaved, onProgress }) {
         <div style={{ background: "rgba(127,213,232,0.08)", borderRadius: 10, padding: "12px 14px",
           marginBottom: 14, borderLeft: `3px solid ${C.rust}` }}>
           <div style={{ fontFamily: FONT_BODY, fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase",
-            fontWeight: 700, color: C.rust, marginBottom: 5 }}>Quizá toca descargar</div>
+            fontWeight: 700, color: C.rust, marginBottom: 5, display: "flex", alignItems: "center", gap: 6 }}>
+            Quizá toca descargar <HelpDot topic="deload" size={13} label="¿Qué es una descarga?" /></div>
           <p style={{ margin: 0, fontFamily: FONT_BODY, fontSize: 13, color: C.sepiaInk, lineHeight: 1.5 }}>
             {deload.message} Prueba bajar a unos {deload.suggested_weight}kg esta semana.
           </p>
@@ -222,6 +225,7 @@ function ExerciseRow({ ex, sess, date, readOnly, onSaved, onProgress }) {
           <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
             <NotebookPen size={13} color={C.olive} />
             <span style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase", color: C.olive, fontWeight: 600 }}>Notas de ejecución</span>
+            <HelpDot topic="exercise_notes" size={13} />
           </div>
           <p style={{ margin: 0, fontFamily: FONT_BODY, fontSize: 13.5, color: C.sepiaInk, lineHeight: 1.55 }}>{ex.notes}</p>
         </div>
@@ -257,7 +261,7 @@ function Progress({ ex, onBack }) {
         border: "none", color: C.sepia, cursor: "pointer", fontFamily: FONT_BODY, fontSize: 13, marginBottom: 14, padding: 0 }}>
         <ArrowLeft size={16} /> Volver a la semana
       </button>
-      <SectionHeader kicker="Progreso" title={ex.name} />
+      <SectionHeader kicker="Progreso" title={ex.name} help="progress_chart" />
 
       <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
         {[["max", "Máximo"], ["avg", "Medio"], ["volume", "Volumen"]].map(([k, l]) => (
@@ -322,6 +326,7 @@ function RestTimer() {
           textTransform: "uppercase", color: running ? C.olive : C.sepia, fontWeight: 600, flex: 1 }}>
           {running ? "Descansando" : done ? "¡A por la siguiente!" : "Descanso entre series"}
         </span>
+        {!running && <HelpDot topic="rest_timer" size={13} label="¿Para qué medir el descanso?" />}
         {running && (
           <span style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, color: C.sepiaInk }}>{mmss(left)}</span>
         )}
@@ -364,6 +369,7 @@ function PlateCalc({ sets }) {
       border: `1px solid ${C.paperEdge}`, borderRadius: 10, padding: "9px 13px", marginBottom: 12 }}>
       <span style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".08em",
         textTransform: "uppercase", color: C.sepia, fontWeight: 600, flexShrink: 0 }}>Discos por lado</span>
+      <HelpDot topic="plate_calc" size={13} label="¿Cómo funciona la calculadora de discos?" />
       <div style={{ display: "flex", gap: 5, flexWrap: "wrap", flex: 1 }}>
         {used.length === 0 ? (
           <span style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.sepia }}>solo la barra</span>

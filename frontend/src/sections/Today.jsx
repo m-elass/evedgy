@@ -13,6 +13,7 @@ import { Check, Quote, Sparkles } from "lucide-react";
 import { api } from "../lib/api";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader, Loading } from "../components/ui";
+import { HelpDot } from "../components/Help";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -80,7 +81,7 @@ export default function Today({ onNavigate }) {
           <div style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase",
             fontWeight: 600, marginBottom: 8, background: GRAD.gold, WebkitBackgroundClip: "text",
             backgroundClip: "text", color: "transparent", width: "fit-content" }}>
-            Tu semana
+            Tu semana{" "}<HelpDot topic="weekly_summary" size={13} />
           </div>
           <p style={{ margin: 0, fontFamily: FONT_DISPLAY, fontSize: 17, color: C.sepiaInk, lineHeight: 1.6 }}>{summary.summary}</p>
         </div>
@@ -132,7 +133,7 @@ export default function Today({ onNavigate }) {
             <Sparkles size={13} color={C.olive} />
             <span style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase",
               fontWeight: 600, background: GRAD.gold, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
-              Un destello del pasado
+              Un destello del pasado{" "}<HelpDot topic="flashback" size={13} />
             </span>
           </div>
           <div style={{ background: C.paper, borderRadius: 14, border: `1px solid ${C.paperEdge}`, padding: "16px 18px" }}>

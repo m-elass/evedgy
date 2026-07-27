@@ -10,6 +10,7 @@ import { Check, Flame, Trash2 } from "lucide-react";
 import { api } from "../lib/api";
 import { C, FONT_BODY } from "../lib/theme";
 import { SectionHeader, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
+import { HelpDot } from "../components/Help";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -89,6 +90,7 @@ export default function DailyTasks() {
           {t.streak > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: 4, color: C.rust }}>
               <Flame size={14} />
+              <HelpDot topic="streak" size={12} label="¿Cómo funciona la racha?" />
               <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 600 }}>{t.streak}</span>
             </div>
           )}

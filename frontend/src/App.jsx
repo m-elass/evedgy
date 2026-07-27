@@ -43,6 +43,7 @@ import Tapestry from "./sections/Tapestry";
 import ThemeSettings from "./sections/ThemeSettings";
 import SettingsHub from "./sections/SettingsHub";
 import StarMap from "./components/StarMap";
+import { HelpProvider, HelpDot } from "./components/Help";
 
 // Todas las secciones, con su zona para el menu.
 const SECTIONS = {
@@ -159,11 +160,20 @@ function Shell() {
   const today = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
 
   return (
+    <HelpProvider section={view}>
     <div style={{ minHeight: "100vh", background: C.ink, display: "flex", flexDirection: "column" }}>
       {/* EL MAR: la capa viva que permanece mientras el contenido fluye */}
       <div className="sea" aria-hidden="true"><i /><i /><i /><i /><i /></div>
-      {mode === "map" ? (
+      {mode === "map" ? (<>
         <StarMap stars={STARS} edges={EDGES} zones={SKY_ZONES} onEnter={enterStar} />
+        {/* Qué es este cielo y cómo se navega */}
+        <div style={{ position: "fixed", top: 16, right: 16, zIndex: 7,
+          background: "rgba(20,40,80,.72)", borderRadius: 999, padding: 3,
+          backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+          border: "1px solid rgba(140,175,230,.28)" }}>
+          <HelpDot topic="sea" size={20} label="¿Qué es el mar de estrellas?" />
+        </div>
+      </>
       ) : (<>
       <div key={view + "-z"} className={"zoomer" + (closing ? " out" : "")}>
       <header style={{ padding: "22px 20px 16px", borderBottom: "none", display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative", zIndex: 1 }}>
@@ -253,6 +263,7 @@ function Shell() {
         </button>
       </nav>}
     </div>
+    </HelpProvider>
   );
 }
 

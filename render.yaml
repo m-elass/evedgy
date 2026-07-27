@@ -15,9 +15,13 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PYTHON_VERSION    # fija la versión de Python (3.14 rompe pydantic)
+        value: 3.12.3
       - key: DATABASE_URL      # cadena de conexión de Supabase (Session pooler)
         sync: false
-      - key: SUPABASE_JWT_SECRET   # JWT Secret de Supabase
+      - key: SUPABASE_JWT_SECRET   # Legacy JWT Secret (opcional, para tokens HS256)
+        sync: false
+      - key: SUPABASE_URL          # https://xxxx.supabase.co (para verificar tokens ES256)
         sync: false
       - key: CORS_ORIGINS      # se cambia en el Paso 5 por tu URL de Vercel
         value: http://localhost:5173

@@ -10,6 +10,7 @@ import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader, Field, SolidBtn, Loading, Empty } from "../components/ui";
+import { HelpDot } from "../components/Help";
 import RankBadge from "../components/RankBadge";
 
 export default function Ranks() {
@@ -82,6 +83,7 @@ export default function Ranks() {
             </div>
             <div style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 600, color: r.badge.color, marginTop: 1 }}>
               {r.badge.name}{r.tier ? ` ${r.tier}` : ""}
+              <HelpDot topic="rank_badge" size={13} label="¿Cómo se calcula el rango?" />
             </div>
             {/* Barra de progreso a la siguiente subdivisión o rango */}
             {r.next_badge && (

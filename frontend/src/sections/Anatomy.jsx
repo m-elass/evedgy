@@ -10,12 +10,14 @@ import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD } from "../lib/theme";
 import { SectionHeader, Loading, Empty } from "../components/ui";
+import { HelpDot } from "../components/Help";
 import BodyMap from "../components/BodyMap";
 
 const NAMES = { pecho: "Pecho", hombros: "Hombros", biceps: "Bíceps", triceps: "Tríceps",
   antebrazo: "Antebrazos", abdomen: "Abdomen", oblicuos: "Oblicuos", cuadriceps: "Cuádriceps",
   femoral: "Femorales", gluteos: "Glúteos", gemelos: "Gemelos", trapecio: "Trapecio",
-  dorsal: "Dorsales", lumbar: "Lumbares" };
+  dorsal: "Espalda alta", lumbar: "Lumbares", hombros_post: "Hombro posterior",
+  aductores: "Aductores", abductores: "Abductores", cuello: "Cuello" };
 
 export default function Anatomy() {
   const [data, setData] = useState(null);
@@ -41,6 +43,11 @@ export default function Anatomy() {
 
           {/* Desglose por grupo: barras de carga relativa */}
           <div style={{ marginTop: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+              <span style={{ fontFamily: FONT_BODY, fontSize: 10.5, letterSpacing: ".14em",
+                textTransform: "uppercase", color: C.sepia, fontWeight: 700 }}>Carga por músculo</span>
+              <HelpDot topic="muscle_week" size={14} label="¿Cómo se calcula la carga?" />
+            </div>
             {Object.entries(data.loads).sort((a, b) => b[1] - a[1]).map(([m, v]) => {
               const max = Math.max(...Object.values(data.loads));
               const strong = data.primary.includes(m);

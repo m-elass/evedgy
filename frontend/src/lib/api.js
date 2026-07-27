@@ -121,6 +121,9 @@ export const api = {
     request(`/routine/week/${start}/${weekday}`, { method: "DELETE" }),
   promoteWeek: (start) => request(`/routine/week/${start}/promote`, { method: "POST" }),
   reanalyzeExercise: (id) => request(`/exercises/${id}/reanalyze`, { method: "POST" }),
+  reanalyzeAll: () => request("/exercises/reanalyze-all", { method: "POST" }),
+  knownCatalog: () => request("/exercises/catalog/known"),
+  analyzeName: (name) => request(`/exercises/analyze?name=${encodeURIComponent(name)}`),
 
   // ── Perfil y rangos ──
   getProfile: () => request("/profile"),

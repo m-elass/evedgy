@@ -13,6 +13,7 @@ import { User, Eye, EyeOff, Palette, Download, Info } from "lucide-react";
 import { api } from "../lib/api";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD } from "../lib/theme";
 import { SectionHeader, Field, SolidBtn, Loading } from "../components/ui";
+import { HelpDot } from "../components/Help";
 
 export default function SettingsHub({ onNavigate }) {
   const [profile, setProfile] = useState(null);
@@ -114,7 +115,11 @@ export default function SettingsHub({ onNavigate }) {
           Todo lo que has escrito y registrado es tuyo. Descárgalo entero en un archivo JSON cuando quieras.
           Las cartas selladas viajan sin su texto: su sello se respeta incluso aquí.
         </div>
-        <SolidBtn label={exporting ? "Preparando…" : "Exportar todos mis datos"} onClick={exportAll} disabled={exporting} />
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <SolidBtn label={exporting ? "Preparando…" : "Exportar todos mis datos"} onClick={exportAll} disabled={exporting} />
+          <HelpDot topic="export_data" size={16} label="¿Qué incluye la exportación?" />
+          <HelpDot topic="install_pwa" size={16} label="¿Cómo instalar la app en el móvil?" />
+        </div>
       </Block>
 
       {/* Acerca de */}
