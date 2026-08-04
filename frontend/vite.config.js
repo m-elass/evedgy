@@ -21,6 +21,15 @@ export default defineConfig({
         theme_color: '#0B1B33',
         orientation: 'portrait',
         lang: 'es',
+        // Accesos rápidos: se mantienen pulsando el icono de la app.
+        shortcuts: [
+          { name: 'Entrenar hoy', short_name: 'Entreno', url: '/?ir=training',
+            icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
+          { name: 'Marcar hábitos', short_name: 'Hábitos', url: '/?ir=daily',
+            icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
+          { name: 'Nuevo destello', short_name: 'Destello', url: '/?ir=notes',
+            icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
+        ],
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },

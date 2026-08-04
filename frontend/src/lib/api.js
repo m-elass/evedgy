@@ -107,7 +107,6 @@ export const api = {
   nextSet: (exerciseId) => request(`/insights/next-set/${exerciseId}`),
   records: () => request("/insights/records"),
   deload: (exerciseId) => request(`/insights/deload/${exerciseId}`),
-  tapestry: () => request("/insights/tapestry"),
   weekSummary: () => request("/summary/week"),
   muscleWeek: () => request("/insights/muscle-week"),
 

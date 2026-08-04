@@ -354,6 +354,75 @@ KB_NAMED = [
 ]
 
 
+# ── BLOQUE 1B: MÁS REPERTORIO (variantes de máquina, calistenia,
+#    accesorios olímpicos, prehabilitación y ejercicios de redes) ──
+KB_EXTRA = [
+    # ═ Tríceps ═
+    (r"(jalon|pushdown|push ?down)[a-z ]{0,20}(supino|inverso|invertid|reverse grip)|reverse grip (triceps )?push ?down",
+     ["tri_med"], ["tri_lat", "tri_larga", "flex_ante"]),
+    (r"dips? asistid|fondos asistid|maquina de fondos",
+     ["pec_inf", "tri_lat"], ["delt_ant", "pec_med", "tri_med"]),
+    # ═ Espalda / tracción ═
+    (r"dominadas? asistid|maquina de dominadas|assisted pull ?up|gravitron",
+     ["dorsal_ancho", "redondo_mayor"], ["biceps_largo", "romboides", "trap_med", "braquial"]),
+    (r"dominada (a )?un (solo )?brazo|one ?arm(ed)? pull ?up",
+     ["dorsal_ancho", "redondo_mayor", "biceps_largo"], ["oblicuo_ext", "flex_ante", "romboides", "trap_med"]),
+    (r"jalon unilateral|pulldown (a )?una mano|jalon (a )?un brazo",
+     ["dorsal_ancho"], ["redondo_mayor", "biceps_largo", "cuadrado_l", "oblicuo_ext"]),
+    (r"remo (en )?landmine|landmine row|remo (con )?barra en esquina",
+     ["dorsal_ancho", "dorsal_inf", "romboides"], ["trap_med", "delt_post", "biceps_largo", "erectores"]),
+    (r"remo (en )?(multipower|smith)|smith( machine)? row",
+     ["dorsal_ancho", "romboides", "trap_med"], ["delt_post", "biceps_largo"]),
+    (r"remo (a |para )?(deltoide(s)? )?posterior|rear delt row|remo alto",
+     ["delt_post", "trap_med"], ["romboides", "infraesp", "biceps_largo"]),
+    (r"front lever raise|elevacion(es)? (de )?front lever|tuck lever",
+     ["dorsal_ancho", "recto_abd"], ["redondo_mayor", "tri_larga", "trap_inf", "gluteo_mayor"]),
+    (r"bandera humana|human flag",
+     ["oblicuo_ext", "oblicuo_int", "dorsal_ancho"], ["delt_lat", "cuadrado_l", "gluteo_medio", "recto_abd"]),
+    (r"clean pull|tiron de cargada|snatch pull|tiron de arrancada",
+     ["trap_sup", "vastos", "gluteo_mayor"], ISQ_BI + ["erectores", "delt_lat", "flex_ante"]),
+    # ═ Hombro y escápula (prehabilitación) ═
+    (r"scapular push ?up|flexion escapular|serratus punch|golpe de serrato|protraccion escapular",
+     ["serrato"], ["pec_menor", "trap_inf", "delt_ant"]),
+    (r"wall angel|angel(es)? (en |de )?pared|angel de pared",
+     ["trap_inf", "trap_med"], ROT_EXT + ["romboides", "delt_post"]),
+    (r"elevacion lateral cruzada|cross ?body (lateral )?raise|elevacion lateral en polea cruzada",
+     ["delt_lat"], ["delt_post", "supraesp", "trap_sup"]),
+    (r"\b(y|t|w|l) ?raise(s)? (en |con )?(banco )?inclinad|incline (y|t|w) raise|ytwl",
+     ["trap_inf", "trap_med", "delt_post"], ROT_EXT + ["romboides"]),
+    (r"press (de )?pecho convergente|maquina convergente|hammer strength (press)?",
+     ["pec_med"], ["pec_inf", "delt_ant", "tri_lat"]),
+    # ═ Pierna y cadera ═
+    (r"hack (squat )?(inverso|invertid)|reverse hack squat",
+     ["gluteo_mayor", "vastos"], ISQ_BI + ["aductor_mayor", "erectores"]),
+    (r"landmine squat|sentadilla (en )?landmine",
+     ["vastos", "gluteo_mayor"], ["recto_abd", "delt_ant", "erectores", "aductor_mayor"]),
+    (r"\bb ?stance\b|stance escalonad|posicion escalonada|kickstand",
+     ["gluteo_mayor"] + ISQ_BI, ["gluteo_medio", "vastos", "cuadrado_l"]),
+    (r"\bkas\b|kas glute bridge",
+     ["gluteo_mayor"], ISQ_BI + ["erectores"]),
+    (r"hip airplane|avion de cadera",
+     ["rotadores_cad", "gluteo_medio"], ["gluteo_mayor", "tfl"] + ISQ_BI),
+    (r"elevacion(es)? de talon(es)? (en |con )?(multipower|smith)|calf raise (en )?smith",
+     GASTRO, ["soleo", "tibial_post"]),
+    (r"curl nordico asistid|nordic asistid|nordico con banda",
+     ["isq_bf_larga", "isq_semitend", "isq_bf_corta"], ["isq_semimem", "gluteo_mayor"] + GASTRO),
+    (r"sentadilla (en |con )?(multipower|smith)|smith( machine)? squat",
+     ["vastos", "gluteo_mayor"], ["aductor_mayor", "isq_bf_larga"]),
+    # ═ Core ═
+    (r"ab pull ?in|pull ?in abdominal|encogimiento en polea sentado",
+     ["recto_abd_inf", "psoas"], ["recto_abd", "oblicuo_ext"]),
+    (r"rotacion (en |de )?landmine|landmine (twist|rotation)|limpiaparabrisas de pie",
+     ["oblicuo_ext", "oblicuo_int"], ["recto_abd", "delt_ant", "serrato", "transverso"]),
+    (r"toe touch|crunch (a |con )?(los )?pies|crunch tocando",
+     ["recto_abd_sup"], ["oblicuo_ext", "recto_abd"]),
+    (r"mcgill|curl ?up de mcgill",
+     ["recto_abd"], ["transverso", "oblicuo_int", "multifidos"]),
+    (r"pino|handstand|equilibrio invertido|parada de manos",
+     ["delt_ant", "delt_lat", "tri_lat"], ["trap_sup", "serrato", "recto_abd", "flex_ante"]),
+]
+
+
 # ── BLOQUE 2: ESPALDA (antes que pecho: "jalón AL PECHO" es espalda) ──
 KB_BACK = [
     (r"face ?pull|jalon a la cara|tiron a la cara",
@@ -398,7 +467,7 @@ KB_BACK = [
      ["dorsal_ancho", "romboides", "trap_med"], ["delt_post", "erectores", "biceps_largo", "braquial"]),
     (r"encogimiento|shrug|elevacion(es)? de hombros",
      ["trap_sup"], ["elevador", "trap_med", "flex_ante"]),
-    (r"pajaro|reverse ?(pec ?deck|fly|flye)|rear ?delt|apertura(s)? invertida|deltoide(s)? posterior|posteriores|contractora invertida",
+    (r"pajaro|reverse ?(pec ?deck|fly|flye)|rear ?delt|apertura(s)? invertida|deltoide(s)? posterior|posteriores|contractora invertida|(pec|peck) ?deck (inverso|invertid)|(maquina|contractora) (de )?posteriores",
      ["delt_post"], ["romboides", "trap_med"] + ROT_EXT),
     (r"\b(y|w|t) raise|prone (y|t) raise|elevacion(es)? en (y|t)\b|no money",
      ["trap_inf", "trap_med"], ["delt_post", "romboides"] + ROT_EXT),
@@ -718,7 +787,7 @@ KB_MISC = [
 ]
 
 # Repertorio completo, en el orden en que se evalúa
-KB = (KB_NAMED + KB_BACK + KB_HINGE + KB_LEGS + KB_CHEST +
+KB = (KB_NAMED + KB_EXTRA + KB_BACK + KB_HINGE + KB_LEGS + KB_CHEST +
       KB_SHOULDER + KB_ARMS + KB_CORE + KB_MISC)
 
 
@@ -901,4 +970,13 @@ CATALOG = [
     "Turkish get-up", "Windmill con kettlebell", "Halo con kettlebell",
     "Atlas stone", "Volteo de rueda", "Cuerdas de batalla", "Comba",
     "Remo en ergómetro", "Assault bike", "Sprint",
+    # ── Añadidos: máquinas, calistenia y prehabilitación ──
+    "Contractora invertida (pec deck inverso)", "Dominadas asistidas",
+    "Jalón unilateral en polea", "Remo en landmine", "Remo para deltoides posterior",
+    "Jalón de tríceps supino", "Fondos asistidos", "Press convergente",
+    "Elevación lateral cruzada en polea", "Y-T-W raise en banco inclinado",
+    "Wall angel", "Scapular push-up", "Hack squat inverso", "Sentadilla en landmine",
+    "Hip thrust en B-stance", "KAS glute bridge", "Hip airplane",
+    "Curl nórdico asistido", "Ab pull-in", "Rotación en landmine",
+    "Front lever raise", "Bandera humana", "Pino (handstand)", "Clean pull", "Snatch pull",
 ]

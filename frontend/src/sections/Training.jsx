@@ -17,6 +17,7 @@ import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader, Collapsible, Field, SolidBtn, Loading, Empty } from "../components/ui";
 import { HelpDot } from "../components/Help";
 import Celebration from "../components/Celebration";
+import RestTimer from "../components/RestTimer";
 
 // ── utilidades de fecha ───────────────────────────────────
 function startOfWeek(d) { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0,0,0,0); return x; }
@@ -231,7 +232,6 @@ function ExerciseRow({ ex, sess, date, readOnly, onSaved, onProgress }) {
         </div>
       )}
 
-      {!sess && !readOnly && <PlateCalc sets={sets} />}
       {!sess && !readOnly && <RestTimer />}
       {!sess && !readOnly && <div style={{ marginBottom: 12 }}><SolidBtn label="Guardar series" onClick={save} /></div>}
 
@@ -297,89 +297,5 @@ const inputData = { width: "100%", boxSizing: "border-box", background: C.inkSof
   borderRadius: 8, padding: "9px 11px", fontFamily: FONT_BODY, fontSize: 16, color: C.sepiaInk, textAlign: "center", fontWeight: 600 };
 const unitLabel = { display: "block", textAlign: "center", fontFamily: FONT_BODY, fontSize: 10, color: C.sepia, marginTop: 3, letterSpacing: ".05em", textTransform: "uppercase" };
 
-/* RestTimer — el descanso entre series, medido. */
-function RestTimer() {
-  const [total, setTotal] = useState(0);
-  const [left, setLeft] = useState(0);
 
-  useEffect(() => {
-    if (left <= 0) return;
-    const t = setTimeout(() => {
-      const next = left - 1;
-      setLeft(next);
-      if (next === 0 && navigator.vibrate) navigator.vibrate([80, 60, 80]);
-    }, 1000);
-    return () => clearTimeout(t);
-  }, [left]);
 
-  const mmss = (n) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
-  const running = left > 0;
-  const done = total > 0 && left === 0;
-
-  return (
-    <div style={{ background: C.inkSoft, border: `1px solid ${running ? C.olive : C.paperEdge}`,
-      borderRadius: 10, padding: "11px 14px", marginBottom: 14,
-      animation: running ? "pulseGold 2s ease infinite" : "none" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: running || done ? 10 : 0 }}>
-        <Timer size={14} color={running ? C.olive : C.sepia} />
-        <span style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".1em",
-          textTransform: "uppercase", color: running ? C.olive : C.sepia, fontWeight: 600, flex: 1 }}>
-          {running ? "Descansando" : done ? "¡A por la siguiente!" : "Descanso entre series"}
-        </span>
-        {!running && <HelpDot topic="rest_timer" size={13} label="¿Para qué medir el descanso?" />}
-        {running && (
-          <span style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, color: C.sepiaInk }}>{mmss(left)}</span>
-        )}
-      </div>
-      {running ? (
-        <>
-          <div style={{ height: 5, background: C.paperEdge, borderRadius: 5, overflow: "hidden" }}>
-            <div style={{ width: `${(left / total) * 100}%`, height: "100%", background: GRAD.gold,
-              transition: "width 1s linear" }} />
-          </div>
-          <button onClick={() => { setLeft(0); setTotal(0); }} style={{ background: "none", border: "none",
-            color: C.sepia, fontFamily: FONT_BODY, fontSize: 11.5, cursor: "pointer", padding: "8px 0 0" }}>Cancelar</button>
-        </>
-      ) : (
-        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-          {[60, 90, 120, 180].map((n) => (
-            <button key={n} onClick={() => { setTotal(n); setLeft(n); }} style={{ flex: 1, padding: "8px 0",
-              borderRadius: 8, cursor: "pointer", fontFamily: FONT_BODY, fontSize: 12.5, fontWeight: 600,
-              background: C.paper, color: C.sepiaInk, border: `1px solid ${C.paperEdge}` }}>{mmss(n)}</button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* PlateCalc — qué discos poner a cada lado de una barra de 20kg. */
-function PlateCalc({ sets }) {
-  const target = Math.max(...sets.map((s) => parseFloat(s.weight) || 0));
-  if (!target || target <= 20) return null;
-  const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
-  let perSide = (target - 20) / 2;
-  const used = [];
-  for (const p of PLATES) {
-    while (perSide >= p - 1e-9) { used.push(p); perSide -= p; }
-  }
-  const exact = perSide < 1e-9;
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, background: C.inkSoft,
-      border: `1px solid ${C.paperEdge}`, borderRadius: 10, padding: "9px 13px", marginBottom: 12 }}>
-      <span style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".08em",
-        textTransform: "uppercase", color: C.sepia, fontWeight: 600, flexShrink: 0 }}>Discos por lado</span>
-      <HelpDot topic="plate_calc" size={13} label="¿Cómo funciona la calculadora de discos?" />
-      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", flex: 1 }}>
-        {used.length === 0 ? (
-          <span style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.sepia }}>solo la barra</span>
-        ) : used.map((p, i) => (
-          <span key={i} style={{ fontFamily: FONT_BODY, fontSize: 12, fontWeight: 700,
-            background: p >= 15 ? GRAD.gold : C.paper, color: p >= 15 ? "#0B1B33" : C.sepiaInk,
-            border: p >= 15 ? "none" : `1px solid ${C.paperEdge}`, borderRadius: 6, padding: "3px 8px" }}>{p}</span>
-        ))}
-        {!exact && <span style={{ fontFamily: FONT_BODY, fontSize: 11, color: C.rust, alignSelf: "center" }}>≈ (barra 20kg)</span>}
-      </div>
-    </div>
-  );
-}

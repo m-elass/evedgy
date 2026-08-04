@@ -1,0 +1,8 @@
+# ── Qué NO se sube a GitHub ───────────────────────────────
+.env                  # tus claves secretas
+__pycache__/          # caché de Python
+*.pyc
+.venv/                # tu entorno virtual de Python
+venv/
+.idea/                # configuración local de PyCharm
+.DS_Store

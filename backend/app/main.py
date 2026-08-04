@@ -17,6 +17,7 @@ Luego abre http://localhost:8000/docs  → documentación interactiva automátic
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.security import rate_limit_middleware, security_headers_middleware
 from app.database import Base, engine
 from app.routers import (
     routine,
@@ -46,6 +47,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Refuerzos: límite de peticiones y cabeceras defensivas
+app.middleware("http")(rate_limit_middleware)
+app.middleware("http")(security_headers_middleware)
 
 
 @app.get("/")

@@ -7,13 +7,23 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync:native": "vite build && cap sync",
+    "open:android": "cap open android",
+    "open:ios": "cap open ios"
   },
   "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/cli": "^6.2.1",
+    "@capacitor/core": "^6.2.1",
+    "@capacitor/haptics": "^6.0.3",
+    "@capacitor/ios": "^6.2.1",
+    "@capacitor/local-notifications": "^6.1.3",
+    "@capacitor/splash-screen": "^6.0.4",
+    "@capacitor/status-bar": "^6.0.3",
     "@supabase/supabase-js": "^2.108.2",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",
-    "react-body-highlighter": "^2.0.5",
     "react-dom": "^19.2.7",
     "recharts": "^3.9.0"
   },

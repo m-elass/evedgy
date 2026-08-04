@@ -39,7 +39,8 @@ export default function Anatomy() {
         <Empty text="Registra entrenamientos esta semana y aquí verás tu cuerpo iluminarse." />
       ) : (
         <div style={{ background: C.paper, border: `1px solid ${C.paperEdge}`, borderRadius: 16, padding: "16px 14px" }}>
-          <BodyMap primary={data.primary} secondary={data.secondary} size={158} />
+          <BodyMap primary={data.primary} secondary={data.secondary}
+            intensity={data.loads} size={150} />
 
           {/* Desglose por grupo: barras de carga relativa */}
           <div style={{ marginTop: 14 }}>

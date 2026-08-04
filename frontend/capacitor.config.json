@@ -1,0 +1,26 @@
+{
+  "appId": "app.tucuaderno.evedgy",
+  "appName": "Tu cuaderno",
+  "webDir": "dist",
+  "backgroundColor": "#102647",
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#102647"
+  },
+  "android": {
+    "backgroundColor": "#102647",
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 900,
+      "backgroundColor": "#102647",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon",
+      "iconColor": "#E8B84B"
+    }
+  }
+}

@@ -2,10 +2,10 @@
  * components/muscleMap.js
  * ───────────────────────
  * Traduce los ids de músculo del backend (español) a los "slugs" que entiende
- * la librería react-body-highlighter (inglés). Un músculo del backend puede
+ * las regiones del cuerpo dibujable. Un músculo del backend puede
  * mapear a varios slugs (p. ej. "hombros" → deltoides frontal y trasero).
  *
- * Slugs válidos de react-body-highlighter (verificados de su documentación):
+ * Regiones del cuerpo (las usa MuscleFigure para agrupar músculos):
  *   chest, biceps, triceps, forearm, front-deltoids, back-deltoids,
  *   abs, obliques, trapezius, upper-back, lower-back,
  *   quadriceps, hamstring, gluteal, calves, adductor, abductors, neck, head

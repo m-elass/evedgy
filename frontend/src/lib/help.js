@@ -195,15 +195,7 @@ export const HELP = {
     ],
     note: "El valor está en la espera: una carta que puedes abrir cuando quieras no dice nada de tu pasado.",
   },
-  tapestry: {
-    title: "El tapiz",
-    lead: "Tu año entero en una sola imagen. Cada semana es una hebra y cada día en que te movoste la hace brillar; los nudos de diamante marcan tus días más intensos.",
-    points: [
-      "El brillo de cada tramo sale de tus datos reales: entrenos y hábitos cumplidos.",
-      "Mirar un año completo cambia la escala: una semana mala se ve como lo que es, una hebra entre cincuenta y dos.",
-      "Los contadores te dicen cuántos días llevas tejidos y cuántas semanas están vivas.",
-    ],
-  },
+
   friends: {
     title: "Amigos",
     lead: "La parte social, con un límite deliberado: se comparte la insignia y el rango, nunca tus números ni tus textos.",

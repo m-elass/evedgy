@@ -39,7 +39,6 @@ import Friends from "./sections/Friends";
 import Letters from "./sections/Letters";
 import Decisions from "./sections/Decisions";
 import Readings from "./sections/Readings";
-import Tapestry from "./sections/Tapestry";
 import ThemeSettings from "./sections/ThemeSettings";
 import SettingsHub from "./sections/SettingsHub";
 import StarMap from "./components/StarMap";
@@ -66,7 +65,6 @@ const SECTIONS = {
   skills:    { label: "Aprendizajes", icon: GraduationCap, comp: Skills,   zone: "Vida" },
   decisions: { label: "Decisiones",  icon: Scale,        comp: Decisions,  zone: "Vida" },
   letters:   { label: "Cartas",      icon: Mail,         comp: Letters,    zone: "Vida" },
-  tapestry:  { label: "El tapiz",    icon: Grid3x3,      comp: Tapestry,   zone: "Vida" },
   friends:   { label: "Amigos",      icon: Users,        comp: Friends,    zone: "Vida" },
 };
 
@@ -80,7 +78,7 @@ const COORDS = {
   daily: [950, 400], todo: [1055, 330],
   notes: [330, 895], write: [235, 975], readings: [430, 985],
   goals: [975, 845], values: [1075, 780], reviews: [1105, 915], skills: [930, 975],
-  decisions: [1015, 1040], letters: [870, 760], tapestry: [780, 940], friends: [1145, 720],
+  decisions: [1015, 1040], letters: [870, 760], friends: [1145, 720],
   settings: [650, 1085], theme: [770, 1130],
 };
 const STARS = [
@@ -99,7 +97,7 @@ const EDGES = [
   ["daily", "todo"],
   ["notes", "write"], ["notes", "readings"],
   ["goals", "values"], ["values", "reviews"], ["goals", "skills"],
-  ["skills", "decisions"], ["goals", "letters"], ["letters", "tapestry"], ["values", "friends"],
+  ["skills", "decisions"], ["goals", "letters"], ["values", "friends"],
   ["settings", "theme"],
 ];
 const SKY_ZONES = [
@@ -114,7 +112,13 @@ const ZONES = ["Cuerpo", "Hacer", "Mente", "Vida"];
 
 function Shell() {
   const [session, setSession] = useState(undefined);
-  const [view, setView] = useState("today");
+  // Si se abre desde un acceso directo del icono (?ir=training), entramos ahí
+  const [view, setView] = useState(() => {
+    try {
+      const ir = new URLSearchParams(window.location.search).get("ir");
+      return ir && SECTIONS[ir] ? ir : "today";
+    } catch { return "today"; }
+  });
   const [mode, setMode] = useState("section");   // empezamos DENTRO de la estrella de Hoy
   const [closing, setClosing] = useState(false); // animación de salida (zoom out)
   const [anim, setAnim] = useState("slide-l");     // dirección del deslizamiento
