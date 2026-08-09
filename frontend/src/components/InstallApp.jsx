@@ -13,12 +13,15 @@
  *     Además, desde Chrome de iOS no se puede instalar: tiene que ser Safari.
  */
 import React, { useEffect, useState } from "react";
-import { Share, Plus, Download, CheckCircle2 } from "lucide-react";
+import { Share, Plus, Download, CheckCircle2, Smartphone, ShieldCheck } from "lucide-react";
 import { C, FONT_BODY, FONT_DISPLAY, GRAD, GLOW } from "../lib/theme";
 
 export default function InstallApp() {
   const [prompt, setPrompt] = useState(null);
   const [instalada, setInstalada] = useState(false);
+  // ¿Hay un APK publicado junto a la web? Si lo hay, se ofrece la descarga
+  // directa: app nativa de verdad, sin pasar por Google Play.
+  const [apk, setApk] = useState(null);
 
   useEffect(() => {
     const yaEsApp = window.matchMedia("(display-mode: standalone)").matches
@@ -27,6 +30,10 @@ export default function InstallApp() {
     const capturar = (e) => { e.preventDefault(); setPrompt(e); };
     window.addEventListener("beforeinstallprompt", capturar);
     window.addEventListener("appinstalled", () => setInstalada(true));
+    // Comprobamos si existe /tu-cuaderno.apk sin descargarlo entero
+    fetch("/tu-cuaderno.apk", { method: "HEAD" })
+      .then((r) => { if (r.ok) setApk("/tu-cuaderno.apk"); })
+      .catch(() => {});
     return () => window.removeEventListener("beforeinstallprompt", capturar);
   }, []);
 
@@ -54,6 +61,36 @@ export default function InstallApp() {
       <p style={{ margin: "0 0 13px", fontFamily: FONT_BODY, fontSize: 13, color: C.sepia, lineHeight: 1.55 }}>
         Queda con su icono en la pantalla de inicio y se abre a pantalla completa, sin barra de navegador.
       </p>
+
+      {/* Descarga directa: la app nativa sin tiendas ni cuotas */}
+      {apk && !esIOS && (
+        <div style={{ background: "rgba(232,184,75,.10)", border: "1px solid rgba(232,184,75,.32)",
+          borderRadius: 12, padding: "13px 14px", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+            <Smartphone size={15} color={C.olive} />
+            <span style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".1em",
+              textTransform: "uppercase", fontWeight: 700, color: C.olive }}>App nativa para Android</span>
+          </div>
+          <p style={{ margin: "0 0 11px", fontFamily: FONT_BODY, fontSize: 12.5, color: C.sepiaInk, lineHeight: 1.55 }}>
+            Descarga el instalador directamente. Es la aplicación completa: notificaciones
+            que suenan con el móvil bloqueado y vibración nativa.
+          </p>
+          <a href={apk} download style={{ display: "inline-flex", alignItems: "center", gap: 9,
+            background: GRAD.gold, color: "#0B1B33", borderRadius: 999, padding: "11px 19px",
+            fontFamily: FONT_BODY, fontSize: 13.5, fontWeight: 700, textDecoration: "none",
+            boxShadow: GLOW.gold }}>
+            <Download size={16} /> Descargar la app (.apk)
+          </a>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 11 }}>
+            <ShieldCheck size={13} color={C.sepia} style={{ marginTop: 2, flexShrink: 0 }} />
+            <span style={{ fontFamily: FONT_BODY, fontSize: 11.5, color: C.sepia, lineHeight: 1.5 }}>
+              Android avisará de que procede de un origen desconocido: es normal al instalar
+              fuera de Play Store. Pulsa «Ajustes» en el aviso y permite instalar desde tu
+              navegador.
+            </span>
+          </div>
+        </div>
+      )}
 
       {prompt ? (
         <button onClick={async () => { prompt.prompt(); const r = await prompt.userChoice;

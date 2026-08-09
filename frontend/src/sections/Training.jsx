@@ -104,11 +104,18 @@ export default function Training() {
                 plan.map((p) => {
                   const ex = byId[p.id];
                   if (!ex) return null;
-                  const sess = sessions.find((s) => s.exercise_id === p.id && s.date === iso);
-                  return (
-                    <ExerciseRow key={p.id} ex={ex} sess={sess} date={iso}
+                  // Puede haber más de una sesión del mismo ejercicio ese día:
+                  // se muestran todas, no solo la primera.
+                  const hechas = sessions.filter((s) => s.exercise_id === p.id && s.date === iso);
+                  const lista = hechas.length ? hechas : [null];
+                  return lista.map((sess, n) => (
+                    // La clave incluye la FECHA: al cambiar de semana React crea
+                    // una fila nueva en vez de reutilizar la anterior, que era lo
+                    // que hacía que se vieran las series de otra semana.
+                    <ExerciseRow key={`${p.id}-${iso}-${sess ? sess.id : "nueva"}`}
+                      ex={ex} sess={sess} date={iso} orden={hechas.length > 1 ? n + 1 : 0}
                       readOnly={!canLog} onSaved={load} onProgress={() => setProgressOf(ex)} />
-                  );
+                  ));
                 })
               )}
             </Collapsible>
@@ -119,12 +126,23 @@ export default function Training() {
   );
 }
 
-function ExerciseRow({ ex, sess, date, readOnly, onSaved, onProgress }) {
-  const initial = sess
-    ? sess.sets.map((s) => ({ reps: s.reps, weight: s.weight }))
-    : [{ reps: "", weight: "" }, { reps: "", weight: "" }, { reps: "", weight: "" }];
-  const [sets, setSets] = useState(initial);
+function ExerciseRow({ ex, sess, date, orden = 0, readOnly, onSaved, onProgress }) {
+  // Las series guardadas, en su orden. Si la sesión trae 5 series, se ven 5.
+  const desdeSesion = () => (sess
+    ? [...sess.sets]
+        .sort((a, b) => (a.set_number || 0) - (b.set_number || 0))
+        .map((s) => ({ reps: s.reps, weight: s.weight }))
+    : [{ reps: "", weight: "" }, { reps: "", weight: "" }, { reps: "", weight: "" }]);
+
+  const [sets, setSets] = useState(desdeSesion);
   const [feelings, setFeelings] = useState(sess ? sess.feelings : "");
+
+  // Si la sesión cambia (otra semana, o los datos llegan después de pintar),
+  // se recargan las series. Sin esto se quedaban las de la vista anterior.
+  useEffect(() => {
+    setSets(desdeSesion());
+    setFeelings(sess ? sess.feelings : "");
+  }, [sess ? sess.id : null, date]);
   const [tip, setTip] = useState(null);
   const [deload, setDeload] = useState(null);
   const [celebrate, setCelebrate] = useState(null);
@@ -158,8 +176,10 @@ function ExerciseRow({ ex, sess, date, readOnly, onSaved, onProgress }) {
   }
 
   return (
-    <Collapsible title={ex.name}
-      subtitle={sess ? `Hecho · máx ${Math.max(...sess.sets.map((s) => s.weight))}kg` : readOnly ? "Planificado" : "Sin registrar"}
+    <Collapsible title={orden ? `${ex.name} · ${orden}ª vez` : ex.name}
+      subtitle={sess
+        ? `${sess.sets.length} ${sess.sets.length === 1 ? "serie" : "series"} · máx ${Math.max(...sess.sets.map((s) => s.weight))}kg · ${sess.sets.reduce((a, s) => a + s.reps, 0)} reps`
+        : readOnly ? "No registrado" : "Sin registrar"}
       accent={sess ? C.olive : C.paperEdge}>
       <Celebration show={!!celebrate} exercise={celebrate?.exercise} oneRm={celebrate?.oneRm}
         onClose={() => { setCelebrate(null); onSaved(); }} />
@@ -217,6 +237,15 @@ function ExerciseRow({ ex, sess, date, readOnly, onSaved, onProgress }) {
           </div>
         ))}
       </div>
+
+      {!sess && !readOnly && (
+        <button onClick={() => setSets((p) => [...p, { reps: "", weight: "" }])}
+          style={{ background: "none", border: `1px dashed ${C.paperEdge}`, color: C.sepia,
+            borderRadius: 8, padding: "8px 14px", fontFamily: FONT_BODY, fontSize: 12.5,
+            cursor: "pointer", marginBottom: 14 }}>
+          + Añadir serie
+        </button>
+      )}
 
       <Field label="Sensaciones" value={feelings} onChange={(e) => setFeelings(e.target.value)}
         readOnly={!!sess || readOnly} multiline placeholder="¿Cómo te has sentido en este ejercicio?" />

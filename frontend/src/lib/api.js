@@ -74,6 +74,12 @@ export const api = {
   updateRandomTask: (id, data) => request(`/random-tasks/${id}`, { method: "PATCH", body: data }),
   deleteRandomTask: (id) => request(`/random-tasks/${id}`, { method: "DELETE" }),
 
+  // Secciones para clasificar las tareas (las crea el usuario)
+  listTaskSections: () => request("/task-sections"),
+  createTaskSection: (data) => request("/task-sections", { method: "POST", body: data }),
+  updateTaskSection: (id, data) => request(`/task-sections/${id}`, { method: "PATCH", body: data }),
+  deleteTaskSection: (id) => request(`/task-sections/${id}`, { method: "DELETE" }),
+
   // Notas
   listNotes: () => request("/notes"),
   createNote: (data) => request("/notes", { method: "POST", body: data }),

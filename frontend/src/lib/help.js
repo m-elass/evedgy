@@ -119,6 +119,17 @@ export const HELP = {
       "Al completarlas quedan registradas, no se borran sin más.",
     ],
   },
+  task_sections: {
+    title: "Secciones de tareas",
+    lead: "Grupos que tú inventas para clasificar tus tareas: «Casa», «Papeleo», «Trabajo»… Cada uno con su color, para reconocerlos de un vistazo sin leer.",
+    points: [
+      "Los nombres y los colores los eliges tú: la app no impone ninguna categoría.",
+      "Clasificar es opcional. Una tarea sin sección vive en «Sin clasificar» y funciona igual.",
+      "Puedes clasificar tareas ya creadas: cada una lleva un selector para moverla de sección cuando quieras.",
+      "Si borras una sección, sus tareas NO se borran: vuelven a «Sin clasificar».",
+    ],
+    note: "Apuntar rápido no debería costarte decisiones. Primero sacas la tarea de la cabeza; ordenarla puede esperar.",
+  },
   notes: {
     title: "Destellos",
     lead: "Ideas, frases y observaciones sueltas que no merecen un texto largo pero sí quedar guardadas. Es la libreta de bolsillo de la app.",

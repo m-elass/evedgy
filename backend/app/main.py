@@ -18,6 +18,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.security import rate_limit_middleware, security_headers_middleware
+from app.migrations import aplicar_migraciones
 from app.database import Base, engine
 from app.routers import (
     routine,
@@ -29,6 +30,9 @@ from app.routers import (
 # (Más adelante, cuando la app crezca, esto se gestiona con migraciones
 #  Alembic; para empezar y aprender, esto es suficiente y directo.)
 Base.metadata.create_all(bind=engine)
+
+# Pone al día bases de datos que ya existían (añade columnas nuevas)
+aplicar_migraciones()
 
 app = FastAPI(title="Gym App API")
 
@@ -65,6 +69,7 @@ app.include_router(exercises.router)
 app.include_router(sessions.router)
 app.include_router(daily_tasks.router)
 app.include_router(random_tasks.router)
+app.include_router(random_tasks.secciones)
 app.include_router(notes.router)
 app.include_router(documents.router)
 app.include_router(sleep.router)

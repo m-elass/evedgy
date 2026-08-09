@@ -137,18 +137,45 @@ class CompletionOut(BaseModel):
 
 class RandomTaskCreate(BaseModel):
     content: str
+    section_id: int | None = None
 
 
 class RandomTaskUpdate(BaseModel):
     content: str | None = None
     done: bool | None = None
+    # Se envía como campo aparte para poder poner una tarea "sin clasificar"
+    # mandando null, sin que se confunda con "no quiero cambiar la sección".
+    section_id: int | None = None
+    clear_section: bool = False
 
 
 class RandomTaskOut(BaseModel):
     id: int
     content: str
     done: bool
-    created_at: datetime
+    section_id: int | None = None
+    # Tolerante a nulo: una fila muy antigua sin fecha no debe romper la lista
+    created_at: datetime | None = None
+    model_config = {"from_attributes": True}
+
+
+# ── Secciones de tareas (las crea el usuario) ─────────────
+class TaskSectionCreate(BaseModel):
+    name: str
+    color: str | None = None
+
+
+class TaskSectionUpdate(BaseModel):
+    name: str | None = None
+    color: str | None = None
+    order: int | None = None
+
+
+class TaskSectionOut(BaseModel):
+    id: int
+    name: str
+    color: str
+    order: int
     model_config = {"from_attributes": True}
 
 

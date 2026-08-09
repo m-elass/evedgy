@@ -125,6 +125,25 @@ class RandomTask(Base):
     user_id = Column(String, index=True, nullable=False)
     content = Column(Text, nullable=False)
     done = Column(Boolean, default=False)
+    # Sección a la que pertenece la tarea. Puede ser None: una tarea sin
+    # clasificar sigue siendo válida y aparece en "Sin clasificar".
+    section_id = Column(Integer, ForeignKey("task_sections.id"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TaskSection(Base):
+    """
+    Una sección para clasificar tareas: las inventa el usuario ("Casa",
+    "Trabajo", "Papeleo"…). Cada una lleva su color para distinguirlas de un
+    vistazo, y un orden para que el usuario decida cómo se ordenan.
+    """
+    __tablename__ = "task_sections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    color = Column(String, default="#E8B84B")
+    order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
