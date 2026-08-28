@@ -9,8 +9,8 @@
  * Se conservan la sugerencia inteligente, el aviso de descarga, los discos,
  * el temporizador de descanso y la celebración de récords.
  */
-import React, { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, TrendingUp, ArrowLeft, Calendar, NotebookPen, Sparkles, Timer } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, TrendingUp, ArrowLeft, Calendar, NotebookPen, Sparkles, Timer, Pencil, Trash2, History, Trophy } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { api } from "../lib/api";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
@@ -29,6 +29,7 @@ export default function Training() {
   const [exercises, setExercises] = useState(null);  // biblioteca (para datos completos)
   const [routine, setRoutine] = useState(null);      // la semana resuelta (7 días)
   const [sessions, setSessions] = useState([]);
+  const [prevSessions, setPrevSessions] = useState([]);
   const [progressOf, setProgressOf] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
 
@@ -39,13 +40,17 @@ export default function Training() {
   useEffect(() => { api.listExercises().then(setExercises).catch(() => setExercises([])); }, []);
   useEffect(() => { load(); }, [weekOffset]);
   async function load() {
+    // La semana anterior se carga también: sirve de referencia al entrenar
+    const prevStart = new Date(weekStart); prevStart.setDate(prevStart.getDate() - 7);
+    const prevEnd = new Date(weekStart); prevEnd.setDate(prevEnd.getDate() - 1);
     try {
-      const [r, s] = await Promise.all([
+      const [r, s, p] = await Promise.all([
         api.routineWeek(ymd(weekStart)),
         api.listSessions({ start: ymd(weekStart), end: ymd(weekEnd) }),
+        api.listSessions({ start: ymd(prevStart), end: ymd(prevEnd) }),
       ]);
-      setRoutine(r); setSessions(s);
-    } catch { setRoutine({ days: [] }); setSessions([]); }
+      setRoutine(r); setSessions(s); setPrevSessions(p);
+    } catch { setRoutine({ days: [] }); setSessions([]); setPrevSessions([]); }
   }
 
   if (progressOf) return <Progress ex={progressOf} onBack={() => setProgressOf(null)} />;
@@ -108,12 +113,15 @@ export default function Training() {
                   // se muestran todas, no solo la primera.
                   const hechas = sessions.filter((s) => s.exercise_id === p.id && s.date === iso);
                   const lista = hechas.length ? hechas : [null];
+                  // Lo que hizo el mismo día de la semana pasada, como referencia
+                  const anterior = prevSessions.filter((x) => x.exercise_id === p.id);
                   return lista.map((sess, n) => (
                     // La clave incluye la FECHA: al cambiar de semana React crea
                     // una fila nueva en vez de reutilizar la anterior, que era lo
                     // que hacía que se vieran las series de otra semana.
                     <ExerciseRow key={`${p.id}-${iso}-${sess ? sess.id : "nueva"}`}
                       ex={ex} sess={sess} date={iso} orden={hechas.length > 1 ? n + 1 : 0}
+                      anterior={anterior}
                       readOnly={!canLog} onSaved={load} onProgress={() => setProgressOf(ex)} />
                   ));
                 })
@@ -126,7 +134,7 @@ export default function Training() {
   );
 }
 
-function ExerciseRow({ ex, sess, date, orden = 0, readOnly, onSaved, onProgress }) {
+function ExerciseRow({ ex, sess, date, orden = 0, anterior = [], readOnly, onSaved, onProgress }) {
   // Las series guardadas, en su orden. Si la sesión trae 5 series, se ven 5.
   const desdeSesion = () => (sess
     ? [...sess.sets]
@@ -144,10 +152,21 @@ function ExerciseRow({ ex, sess, date, orden = 0, readOnly, onSaved, onProgress 
     setFeelings(sess ? sess.feelings : "");
   }, [sess ? sess.id : null, date]);
   const [tip, setTip] = useState(null);
+  const [guardando, setGuardando] = useState(false);   // para mostrar "Guardando…"
+  // El cerrojo de verdad: useRef cambia EN EL ACTO. Con useState, tres toques
+  // en el mismo instante leen todos el valor viejo (false) antes de que React
+  // repinte, y se crean tres sesiones. Con ref, el segundo toque ya ve true.
+  const enCurso = useRef(false);
+  const [editando, setEditando] = useState(false);
+  const [mejor, setMejor] = useState(null);            // mejor serie histórica
   const [deload, setDeload] = useState(null);
   const [celebrate, setCelebrate] = useState(null);
 
-  const canSuggest = !sess && !readOnly;
+  const canSuggest = !sess && !readOnly && !editando;
+  const editable = (!sess || editando) && !readOnly;   // ¿se pueden tocar los campos?
+
+  // Tu mejor serie de siempre en este ejercicio (por 1RM estimado)
+  useEffect(() => { api.bestSet(ex.id).then(setMejor).catch(() => setMejor(null)); }, [ex.id, sess]);
   useEffect(() => {
     if (!canSuggest) return;
     api.nextSet(ex.id).then(setTip).catch(() => setTip(null));
@@ -164,15 +183,35 @@ function ExerciseRow({ ex, sess, date, orden = 0, readOnly, onSaved, onProgress 
   }
 
   async function save() {
-    const payload = {
-      exercise_id: ex.id, date, feelings,
-      sets: sets.map((s, idx) => ({ set_number: idx + 1, reps: parseInt(s.reps) || 0, weight: parseFloat(s.weight) || 0 })),
-    };
-    const res = await api.createSession(payload);
-    if (res?.new_record) {
-      if (navigator.vibrate) navigator.vibrate([60, 40, 120]);
-      setCelebrate({ exercise: res.exercise_name || ex.name, oneRm: res.record_1rm });
-    } else { onSaved(); }
+    // Si ya se está guardando, no se hace nada: es lo que evitaba que un
+    // segundo toque (o un toque doble accidental) creara una sesión repetida.
+    if (enCurso.current) return;
+    enCurso.current = true;
+    setGuardando(true);
+    const series = sets.map((s, idx) => ({
+      set_number: idx + 1, reps: parseInt(s.reps) || 0, weight: parseFloat(s.weight) || 0,
+    }));
+    try {
+      if (editando && sess) {
+        await api.updateSession(sess.id, { sets: series, feelings });
+        setEditando(false);
+        onSaved();
+      } else {
+        const res = await api.createSession({ exercise_id: ex.id, date, feelings, sets: series });
+        if (res?.new_record) {
+          if (navigator.vibrate) navigator.vibrate([60, 40, 120]);
+          setCelebrate({ exercise: res.exercise_name || ex.name, oneRm: res.record_1rm });
+        } else { onSaved(); }
+      }
+    } finally { enCurso.current = false; setGuardando(false); }
+  }
+
+  async function borrar() {
+    if (!sess || enCurso.current) return;
+    enCurso.current = true;
+    setGuardando(true);
+    try { await api.deleteSession(sess.id); onSaved(); }
+    finally { enCurso.current = false; setGuardando(false); }
   }
 
   return (
@@ -220,17 +259,49 @@ function ExerciseRow({ ex, sess, date, orden = 0, readOnly, onSaved, onProgress 
         </div>
       )}
 
+      {/* Lo que hiciste la semana pasada: tabla pequeña y difuminada */}
+      {anterior.length > 0 && (
+        <div style={{ opacity: 0.55, background: C.inkSoft, borderRadius: 10,
+          padding: "9px 12px", marginBottom: 12, border: `1px dashed ${C.paperEdge}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <History size={11} color={C.sepia} />
+            <span style={{ fontFamily: FONT_BODY, fontSize: 9.5, letterSpacing: ".12em",
+              textTransform: "uppercase", color: C.sepia, fontWeight: 600 }}>Semana pasada</span>
+          </div>
+          {anterior.map((ses) => (
+            <div key={ses.id} style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px" }}>
+              {[...ses.sets].sort((a, b) => a.set_number - b.set_number).map((st) => (
+                <span key={st.id ?? st.set_number} style={{ fontFamily: FONT_BODY, fontSize: 11.5, color: C.sepia }}>
+                  {st.reps}<span style={{ opacity: .6 }}>×</span>{st.weight}<span style={{ opacity: .6 }}>kg</span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tu mejor serie de siempre en este ejercicio */}
+      {mejor?.has_best && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <Trophy size={12} color={C.olive} style={{ flexShrink: 0 }} />
+          <span style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.sepia, lineHeight: 1.45 }}>
+            Tu mejor serie: <strong style={{ color: C.olive }}>{mejor.reps} × {mejor.weight}kg</strong>
+            {" "}· 1RM {mejor.one_rm}kg · {fmtShort(mejor.date)}
+          </span>
+        </div>
+      )}
+
       <div style={{ marginBottom: 14 }}>
         {sets.map((s, j) => (
           <div key={j} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
             <div style={{ width: 58, fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", color: C.sepia }}>Serie {j + 1}</div>
             <div style={{ flex: 1, display: "flex", gap: 8 }}>
               <div style={{ flex: 1 }}>
-                <input value={s.reps} onChange={(e) => setField(j, "reps", e.target.value)} readOnly={!!sess || readOnly} placeholder="–" style={inputData} />
+                <input value={s.reps} onChange={(e) => setField(j, "reps", e.target.value)} readOnly={!editable} placeholder="–" style={inputData} />
                 <span style={unitLabel}>reps</span>
               </div>
               <div style={{ flex: 1 }}>
-                <input value={s.weight} onChange={(e) => setField(j, "weight", e.target.value)} readOnly={!!sess || readOnly} placeholder="–" style={inputData} />
+                <input value={s.weight} onChange={(e) => setField(j, "weight", e.target.value)} readOnly={!editable} placeholder="–" style={inputData} />
                 <span style={unitLabel}>kg</span>
               </div>
             </div>
@@ -238,7 +309,7 @@ function ExerciseRow({ ex, sess, date, orden = 0, readOnly, onSaved, onProgress 
         ))}
       </div>
 
-      {!sess && !readOnly && (
+      {editable && (
         <button onClick={() => setSets((p) => [...p, { reps: "", weight: "" }])}
           style={{ background: "none", border: `1px dashed ${C.paperEdge}`, color: C.sepia,
             borderRadius: 8, padding: "8px 14px", fontFamily: FONT_BODY, fontSize: 12.5,
@@ -248,7 +319,7 @@ function ExerciseRow({ ex, sess, date, orden = 0, readOnly, onSaved, onProgress 
       )}
 
       <Field label="Sensaciones" value={feelings} onChange={(e) => setFeelings(e.target.value)}
-        readOnly={!!sess || readOnly} multiline placeholder="¿Cómo te has sentido en este ejercicio?" />
+        readOnly={!editable} multiline placeholder="¿Cómo te has sentido en este ejercicio?" />
 
       {ex.notes && (
         <div style={{ background: "rgba(232,184,75,0.08)", borderRadius: 8, padding: "11px 13px", borderLeft: `3px solid ${C.olive}`, marginBottom: 12 }}>
@@ -261,8 +332,35 @@ function ExerciseRow({ ex, sess, date, orden = 0, readOnly, onSaved, onProgress 
         </div>
       )}
 
-      {!sess && !readOnly && <RestTimer />}
-      {!sess && !readOnly && <div style={{ marginBottom: 12 }}><SolidBtn label="Guardar series" onClick={save} /></div>}
+      {editable && <RestTimer />}
+      {editable && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+          <SolidBtn label={guardando ? "Guardando…" : editando ? "Guardar cambios" : "Guardar series"}
+            onClick={save} disabled={guardando} />
+          {editando && (
+            <button onClick={() => { setEditando(false); setSets(desdeSesion()); setFeelings(sess ? sess.feelings : ""); }}
+              style={{ background: "none", border: "none", color: C.sepia, fontFamily: FONT_BODY,
+                fontSize: 13, cursor: "pointer" }}>Cancelar</button>
+          )}
+        </div>
+      )}
+
+      {/* Una sesión guardada se puede corregir o borrar: guardar no es definitivo */}
+      {sess && !editando && !readOnly && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <button onClick={() => setEditando(true)} style={{ display: "inline-flex", alignItems: "center",
+            gap: 7, background: C.inkSoft, color: C.sepiaInk, border: `1px solid ${C.paperEdge}`,
+            borderRadius: 999, padding: "9px 15px", fontFamily: FONT_BODY, fontSize: 12.5, cursor: "pointer" }}>
+            <Pencil size={13} /> Modificar
+          </button>
+          <button onClick={borrar} disabled={guardando} style={{ display: "inline-flex", alignItems: "center",
+            gap: 7, background: "none", color: C.rust, border: `1px solid ${C.rust}55`,
+            borderRadius: 999, padding: "9px 15px", fontFamily: FONT_BODY, fontSize: 12.5,
+            cursor: guardando ? "default" : "pointer" }}>
+            <Trash2 size={13} /> Eliminar
+          </button>
+        </div>
+      )}
 
       <button onClick={onProgress} style={{ display: "inline-flex", alignItems: "center", gap: 7,
         background: C.inkSoft, color: C.sepiaInk, border: `1px solid ${C.paperEdge}`, borderRadius: 999, padding: "9px 15px",

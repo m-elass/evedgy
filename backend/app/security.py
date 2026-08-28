@@ -70,4 +70,7 @@ async def security_headers_middleware(request: Request, call_next):
     respuesta.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     respuesta.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     respuesta.headers["Cache-Control"] = "no-store"      # datos personales sin caché
+    # Que ningún buscador indexe la API ni la guarde en caché: todo está tras
+    # login, así que aparecer en Google solo sería superficie de ataque.
+    respuesta.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
     return respuesta

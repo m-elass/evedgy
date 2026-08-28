@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app import ai_budget
 from app.auth import get_current_user_id
 from app.config import settings
 from app import models
@@ -95,6 +96,13 @@ def week_summary(db: Session = Depends(get_db),
     api_key = getattr(settings, "ANTHROPIC_API_KEY", None)
     if not api_key:
         # Sin IA configurada: devolvemos el resumen manual (la función no se rompe).
+        return {"narrated": False, "summary": manual, "data": data}
+
+    # Con IA sí hay coste. Si no queda presupuesto, en lugar de fallar
+    # devolvemos el resumen calculado sin IA: el usuario nunca se queda sin nada.
+    try:
+        ai_budget.consumir(db, user_id)
+    except Exception:
         return {"narrated": False, "summary": manual, "data": data}
 
     try:

@@ -171,3 +171,61 @@ def export_all(db: Session = Depends(get_db),
         })
 
     return data
+
+
+@router.delete("/profile/account")
+def delete_account(
+    confirm: str = "",
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    """
+    Borra TODO lo que la app guarda de este usuario. Sin vuelta atrás.
+
+    El RGPD reconoce el «derecho de supresión»: quien te confía sus datos
+    tiene que poder recuperarlos (exportar) y también borrarlos por completo.
+    Sin esto, la app no cumpliría la ley aunque el resto estuviera perfecto.
+
+    Se recorren todas las tablas que llevan user_id y se eliminan sus filas.
+    Exige ?confirm=BORRAR para que un clic accidental no destruya un año de
+    registro.
+    """
+    if confirm != "BORRAR":
+        raise HTTPException(
+            status_code=400,
+            detail="Falta la confirmación. Esta acción borra todos tus datos "
+                   "y no se puede deshacer.")
+
+    borradas = {}
+    # Las series cuelgan de las sesiones: se borran primero para no dejar huérfanas
+    sesiones = [s.id for s in db.query(models.Session)
+                .filter(models.Session.user_id == user_id).all()]
+    if sesiones:
+        n = (db.query(models.ExerciseSet)
+             .filter(models.ExerciseSet.session_id.in_(sesiones)).delete(synchronize_session=False))
+        borradas["sets"] = n
+
+    # Lo mismo con las marcas de hábitos cumplidos
+    habitos = [t.id for t in db.query(models.DailyTask)
+               .filter(models.DailyTask.user_id == user_id).all()]
+    if habitos:
+        n = (db.query(models.TaskCompletion)
+             .filter(models.TaskCompletion.daily_task_id.in_(habitos)).delete(synchronize_session=False))
+        borradas["task_completions"] = n
+
+    # Y ahora todo lo que lleva user_id directamente
+    for modelo in models.Base.__subclasses__():
+        if not hasattr(modelo, "user_id"):
+            continue
+        n = db.query(modelo).filter(modelo.user_id == user_id).delete(synchronize_session=False)
+        if n:
+            borradas[modelo.__tablename__] = n
+
+    db.commit()
+    return {
+        "ok": True,
+        "borrado": borradas,
+        "aviso": "Tus datos han sido eliminados de la aplicación. Para borrar "
+                 "también la cuenta de acceso (tu email y contraseña), usa la "
+                 "opción de eliminar cuenta de tu proveedor de identidad.",
+    }

@@ -42,6 +42,9 @@ async function request(path, { method = "GET", body } = {}) {
 // Cada una mapea 1:1 con un endpoint del backend. Nombres claros.
 
 export const api = {
+  // Derecho de supresión (RGPD): borra todos los datos del usuario.
+  // La confirmación viaja en la URL porque el backend la exige explícitamente.
+  deleteAccount: () => request("/profile/account?confirm=BORRAR", { method: "DELETE" }),
   // Ejercicios
   listExercises: () => request("/exercises"),
   createExercise: (data) => request("/exercises", { method: "POST", body: data }),
@@ -55,6 +58,9 @@ export const api = {
     return request(`/sessions${q ? `?${q}` : ""}`);
   },
   createSession: (data) => request("/sessions", { method: "POST", body: data }),
+  updateSession: (id, data) => request(`/sessions/${id}`, { method: "PATCH", body: data }),
+  deleteSession: (id) => request(`/sessions/${id}`, { method: "DELETE" }),
+  bestSet: (exerciseId) => request(`/sessions/best/${exerciseId}`),
   deleteSession: (id) => request(`/sessions/${id}`, { method: "DELETE" }),
   exerciseProgress: (id) => request(`/sessions/progress/${id}`),
 

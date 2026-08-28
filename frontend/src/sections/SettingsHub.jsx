@@ -15,6 +15,7 @@ import { C, FONT_DISPLAY, FONT_BODY, GRAD } from "../lib/theme";
 import { SectionHeader, Field, SolidBtn, Loading } from "../components/ui";
 import { HelpDot } from "../components/Help";
 import InstallApp from "../components/InstallApp";
+import Legal from "../components/Legal";
 
 export default function SettingsHub({ onNavigate }) {
   const [profile, setProfile] = useState(null);
@@ -117,6 +118,8 @@ export default function SettingsHub({ onNavigate }) {
           Las cartas selladas viajan sin su texto: su sello se respeta incluso aquí.
         </div>
         <div style={{ marginBottom: 18 }}><InstallApp /></div>
+
+        <div style={{ marginBottom: 18 }}><Legal /></div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <SolidBtn label={exporting ? "Preparando…" : "Exportar todos mis datos"} onClick={exportAll} disabled={exporting} />

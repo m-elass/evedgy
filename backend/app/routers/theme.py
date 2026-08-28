@@ -14,9 +14,12 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from app import ai_budget
 from app.auth import get_current_user_id
 from app.config import settings
+from app.database import get_db
 
 router = APIRouter(prefix="/theme", tags=["theme"])
 
@@ -54,11 +57,16 @@ class ThemeRequest(BaseModel):
 
 @router.post("/generate")
 def generate_theme(data: ThemeRequest,
+                   db: Session = Depends(get_db),
                    user_id: str = Depends(get_current_user_id)):
     api_key = getattr(settings, "ANTHROPIC_API_KEY", None)
     if not api_key:
         raise HTTPException(status_code=503,
             detail="Generacion de temas no configurada. Usa los temas base.")
+
+    # A partir de aquí la llamada cuesta dinero: se descuenta del presupuesto
+    # diario (por usuario y global). Si no queda, se corta con un 429 claro.
+    ai_budget.consumir(db, user_id)
 
     # Import local: solo se necesita aqui, y si la libreria no esta, el resto
     # de la app no se ve afectada.

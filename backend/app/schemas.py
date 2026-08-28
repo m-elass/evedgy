@@ -83,6 +83,12 @@ class SessionCreate(BaseModel):
     sets: list[SetCreate] = []
 
 
+class SessionUpdate(BaseModel):
+    """Editar una sesión ya guardada: sus series y/o sus sensaciones."""
+    feelings: str | None = None
+    sets: list[SetCreate] | None = None
+
+
 class SessionOut(BaseModel):
     """Un entrenamiento tal como lo devuelve la API, con sus series dentro."""
     id: int

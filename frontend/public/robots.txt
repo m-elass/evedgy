@@ -1,0 +1,5 @@
+# Tu cuaderno es una aplicación privada: todo su contenido está tras un login.
+# No hay nada útil que indexar y aparecer en buscadores solo añadiría
+# superficie de ataque, así que se pide a los rastreadores que no entren.
+User-agent: *
+Disallow: /

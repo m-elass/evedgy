@@ -11,7 +11,7 @@
  *     tarea lleva un selector para moverla de sección con un toque.
  */
 import React, { useEffect, useState } from "react";
-import { Check, Trash2, Tag, Plus, X, Pencil } from "lucide-react";
+import { Check, Trash2, Tag, Plus, X, Pencil, ChevronRight } from "lucide-react";
 import { api } from "../lib/api";
 import { C, FONT_BODY, FONT_DISPLAY, GRAD } from "../lib/theme";
 import { SectionHeader, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
@@ -26,6 +26,9 @@ export default function RandomTasks() {
   const [texto, setTexto] = useState("");
   const [destino, setDestino] = useState("");        // sección de la tarea nueva
   const [gestionar, setGestionar] = useState(false); // panel de secciones
+  // Secciones plegadas. Se pliegan al tocar su cabecera; así una lista larga
+  // se lee de un vistazo y solo abres el grupo que te interesa ahora.
+  const [plegadas, setPlegadas] = useState({});
 
   useEffect(() => { cargar(); }, []);
   async function cargar() {
@@ -93,22 +96,36 @@ export default function RandomTasks() {
       {tasks.length === 0 ? (
         <Empty text="Sin tareas pendientes. Apunta lo que tengas en la cabeza y déjala libre." />
       ) : (
-        grupos.map((g) => (
-          <div key={g.id ?? "sin"} style={{ marginBottom: 22 }}>
-            {/* Cabecera de la sección, con su color */}
-            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 9 }}>
+        grupos.map((g) => {
+          const clave = g.id ?? "sin";
+          const abierta = !plegadas[clave];
+          const pendientes = g.tareas.filter((t) => !t.done).length;
+          return (
+          <div key={clave} style={{ marginBottom: abierta ? 22 : 12 }}>
+            {/* Cabecera pulsable: la sección contiene y esconde sus tareas */}
+            <button onClick={() => setPlegadas((p) => ({ ...p, [g.id ?? "sin"]: !abierta }))}
+              aria-expanded={abierta}
+              style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 9, width: "100%",
+                background: "none", border: "none", padding: "2px 0", cursor: "pointer", textAlign: "left" }}>
+              <span style={{ display: "flex", alignItems: "center", justifyContent: "center",
+                width: 18, height: 18, flexShrink: 0, color: C.sepia,
+                transform: abierta ? "rotate(90deg)" : "none",
+                transition: "transform .3s cubic-bezier(.34,1.56,.64,1)" }}>
+                <ChevronRight size={15} />
+              </span>
               <span style={{ width: 10, height: 10, borderRadius: 3, background: g.color,
                 boxShadow: g.id ? `0 0 8px ${g.color}` : "none", flexShrink: 0 }} />
               <span style={{ fontFamily: FONT_BODY, fontSize: 11.5, letterSpacing: ".14em",
                 textTransform: "uppercase", fontWeight: 700,
                 color: g.id ? C.sepiaInk : C.sepia }}>{g.name}</span>
               <span style={{ fontFamily: FONT_BODY, fontSize: 11.5, color: C.sepia }}>
-                {g.tareas.filter((t) => !t.done).length} pendientes
+                {pendientes} pendiente{pendientes === 1 ? "" : "s"}
+                {!abierta && g.tareas.length > pendientes ? ` · ${g.tareas.length} en total` : ""}
               </span>
               <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${g.color}55, transparent)` }} />
-            </div>
+            </button>
 
-            {g.tareas.length === 0 ? (
+            {!abierta ? null : g.tareas.length === 0 ? (
               <div style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: C.sepia,
                 padding: "6px 4px 10px" }}>Nada aquí todavía.</div>
             ) : (
@@ -141,7 +158,8 @@ export default function RandomTasks() {
               ))
             )}
           </div>
-        ))
+          );
+        })
       )}
     </div>
   );

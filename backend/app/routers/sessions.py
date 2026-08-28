@@ -164,3 +164,71 @@ def delete_session(
     db.delete(session)
     db.commit()
     return {"ok": True}
+
+
+@router.patch("/{session_id}", response_model=schemas.SessionOut)
+def update_session(
+    session_id: int,
+    data: schemas.SessionUpdate,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    """
+    Corrige un entrenamiento ya guardado: sus series o sus sensaciones.
+
+    Al reemplazar las series se borran las anteriores y se crean las nuevas,
+    porque una sesión son "estas series" y no una lista que se parchea a
+    trozos. No se recalcula el récord aquí: los récords se leen siempre del
+    histórico completo, así que se corrigen solos al cambiar los datos.
+    """
+    sesion = (db.query(models.Session)
+              .filter(models.Session.id == session_id,
+                      models.Session.user_id == user_id).first())
+    if sesion is None:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+
+    if data.feelings is not None:
+        sesion.feelings = data.feelings
+
+    if data.sets is not None:
+        db.query(models.ExerciseSet).filter(models.ExerciseSet.session_id == sesion.id).delete()
+        for i, st in enumerate(data.sets, start=1):
+            db.add(models.ExerciseSet(session_id=sesion.id, set_number=i,
+                              reps=st.reps, weight=st.weight))
+
+    db.commit()
+    db.refresh(sesion)
+    return sesion
+
+
+@router.get("/best/{exercise_id}")
+def best_set(
+    exercise_id: int,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    """
+    Tu mejor serie histórica en un ejercicio, medida por 1RM estimado.
+
+    Se compara con la fórmula de Epley y no por peso bruto, porque 6×85kg vale
+    más que 12×70kg aunque el peso sea menor: así la "mejor serie" es la más
+    fuerte de verdad, no simplemente la más pesada.
+    """
+    from app.strength_standards import estimate_1rm
+
+    _check_exercise_owned(db, exercise_id, user_id)
+    sesiones = (db.query(models.Session)
+                .filter(models.Session.user_id == user_id,
+                        models.Session.exercise_id == exercise_id).all())
+    mejor = None
+    for ses in sesiones:
+        for st in ses.sets:
+            if st.weight <= 0 or st.reps <= 0:
+                continue
+            rm = estimate_1rm(st.weight, st.reps)
+            if mejor is None or rm > mejor["one_rm"]:
+                mejor = {"weight": st.weight, "reps": st.reps,
+                         "one_rm": round(rm, 1), "date": ses.date.isoformat()}
+    if mejor is None:
+        return {"has_best": False}
+    return {"has_best": True, **mejor}

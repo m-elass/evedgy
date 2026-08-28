@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     # Secreto legacy (HS256). Opcional: solo se usa si el token es HS256.
     SUPABASE_JWT_SECRET: str | None = None
 
+    # Topes de gasto de las funciones con IA (llamadas por día). Se pueden
+    # ajustar desde Render sin tocar el código.
+    AI_LIMITE_USUARIO_DIA: int = 20
+    AI_LIMITE_GLOBAL_DIA: int = 300
+
     # URL del proyecto Supabase (p. ej. https://xxxx.supabase.co).
     # Necesaria para verificar los tokens nuevos (ES256) con las claves
     # públicas de Supabase. Se rellena con la variable SUPABASE_URL en Render.

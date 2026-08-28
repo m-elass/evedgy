@@ -131,6 +131,23 @@ class RandomTask(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class AiUsage(Base):
+    """
+    Cuántas llamadas a la IA ha hecho un usuario cada día.
+
+    Las funciones con IA (temas a medida, resumen semanal inteligente) cuestan
+    dinero real por petición. Sin un tope, un fallo en bucle o un uso abusivo
+    podrían generar una factura desagradable. Aquí se lleva la cuenta para
+    poder cortar antes de que eso ocurra.
+    """
+    __tablename__ = "ai_usage"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    day = Column(Date, index=True, nullable=False)
+    calls = Column(Integer, default=0)
+
+
 class TaskSection(Base):
     """
     Una sección para clasificar tareas: las inventa el usuario ("Casa",
