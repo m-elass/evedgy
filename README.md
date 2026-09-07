@@ -1,4 +1,7 @@
 # Tu cuaderno
+![Tu cuaderno](Captura de pantalla 2026-09-07 183514.png)
+![Tu cuaderno](Captura de pantalla 2026-09-07 183603.png)
+![Tu cuaderno](Captura de pantalla 2026-09-07 183700.png)
 
 App personal de entrenamiento y vida: registro de gimnasio con progreso, hábitos,
 tareas, notas, escritura, sueño y objetivos. Cada usuario tiene su espacio privado.
@@ -86,10 +89,6 @@ Cada parte tiene su `.env.example` como plantilla. Resumen:
 | `src/components/` | piezas reutilizables (UI, login, errores) |
 | `src/sections/` | las 8 secciones de la app |
 
-## Desplegar a internet
 
-Sigue `guia-despliegue.md` paso a paso. Resumen: subir a GitHub, crear el proyecto
-en Supabase, desplegar el backend en Render y el frontend en Vercel, y conectar las
-tres piezas con sus claves.
 EOF
 echo "README raíz creado"
