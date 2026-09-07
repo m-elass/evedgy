@@ -1,7 +1,10 @@
 # Tu cuaderno
-![Tu cuaderno](evedgy1.png)
-![Tu cuaderno](evedgy2.png)
+
 ![Tu cuaderno](evedgy3.png)
+![Tu cuaderno](evedgy2.png)
+![Tu cuaderno](evedgy1.png)
+
+
 
 App personal de entrenamiento y vida: registro de gimnasio con progreso, hábitos,
 tareas, notas, escritura, sueño y objetivos. Cada usuario tiene su espacio privado.
