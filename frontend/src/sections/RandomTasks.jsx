@@ -16,7 +16,7 @@ import { api } from "../lib/api";
 import { useApi, useRefrescar } from "../lib/useApi";
 import { avisar } from "../lib/toast";
 import { C, FONT_BODY, FONT_DISPLAY, GRAD } from "../lib/theme";
-import { SectionHeader, Field, SolidBtn, Empty } from "../components/ui";
+import { SectionHeader, Field, SolidBtn, Empty, AddBtn } from "../components/ui";
 import { HelpDot } from "../components/Help";
 
 /* A dónde se puede llevar una tarea que en realidad es otra cosa */
