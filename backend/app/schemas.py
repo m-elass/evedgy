@@ -125,6 +125,12 @@ class DailyTaskOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DailyTaskTodayOut(DailyTaskOut):
+    """Un hábito con su estado de hoy y su racha, calculados en el servidor."""
+    done_today: bool
+    streak: int
+
+
 class CompletionCreate(BaseModel):
     """Marca/desmarca un hábito en una fecha."""
     date: date_type
@@ -479,3 +485,193 @@ class FriendRankOut(BaseModel):
 class RoutineDayIn(BaseModel):
     """Los ejercicios (en orden) que ocupan un día de la rutina."""
     exercise_ids: list[int]
+
+
+# ═════════════════════════════════════════════════════════
+# NUEVO: carta diaria, conocimiento, frases, habilidades,
+# widgets y avisos. Todo lo que entra tiene límites de tamaño.
+# ═════════════════════════════════════════════════════════
+from typing import Literal
+from pydantic import Field, field_validator
+
+SELLOS = Literal["carmesi", "oro", "esmeralda", "zafiro", "amatista", "noche"]
+
+
+class DailyLetterIn(BaseModel):
+    greeting: str = Field("", max_length=120)
+    body: str = Field(..., min_length=1, max_length=20000)
+    closing: str = Field("", max_length=120)
+    seal: SELLOS = "carmesi"
+
+
+TIPOS_CONOCIMIENTO = Literal["libro", "pelicula", "serie", "video", "documental",
+                             "podcast", "curso", "articulo"]
+ESTADOS_CONOCIMIENTO = Literal["pendiente", "en_curso", "hecho"]
+
+
+def _enlace_valido(v: str) -> str:
+    v = (v or "").strip()
+    if v and not v.lower().startswith(("https://", "http://")):
+        raise ValueError("El enlace debe empezar por https://")
+    return v
+
+
+class KnowledgeCreate(BaseModel):
+    kind: TIPOS_CONOCIMIENTO = "libro"
+    title: str = Field(..., min_length=1, max_length=200)
+    creator: str = Field("", max_length=160)
+    why: str = Field("", max_length=2000)
+    link: str = Field("", max_length=500)
+    priority: int = Field(0, ge=0, le=2)
+
+    _link = field_validator("link")(_enlace_valido)
+
+
+class KnowledgeUpdate(BaseModel):
+    kind: TIPOS_CONOCIMIENTO | None = None
+    title: str | None = Field(None, min_length=1, max_length=200)
+    creator: str | None = Field(None, max_length=160)
+    why: str | None = Field(None, max_length=2000)
+    link: str | None = Field(None, max_length=500)
+    priority: int | None = Field(None, ge=0, le=2)
+    status: ESTADOS_CONOCIMIENTO | None = None
+    note: str | None = Field(None, max_length=4000)
+
+    @field_validator("link")
+    @classmethod
+    def _link(cls, v):
+        return None if v is None else _enlace_valido(v)
+
+
+class KnowledgeOut(BaseModel):
+    id: int
+    kind: str
+    title: str
+    creator: str | None = ""
+    why: str | None = ""
+    link: str | None = ""
+    status: str
+    priority: int | None = 0
+    note: str | None = ""
+    created_at: datetime | None = None
+    finished_at: datetime | None = None
+    model_config = {"from_attributes": True}
+
+
+class FromTaskIn(BaseModel):
+    kind: TIPOS_CONOCIMIENTO = "libro"
+
+
+class QuoteCreate(BaseModel):
+    text: str = Field(..., min_length=1, max_length=1000)
+    author: str = Field("", max_length=120)
+    source: str = Field("", max_length=160)
+    favorite: bool = False
+    in_widget: bool = True
+
+
+class QuoteUpdate(BaseModel):
+    text: str | None = Field(None, min_length=1, max_length=1000)
+    author: str | None = Field(None, max_length=120)
+    source: str | None = Field(None, max_length=160)
+    favorite: bool | None = None
+    in_widget: bool | None = None
+
+
+class QuoteOut(BaseModel):
+    id: int
+    text: str
+    author: str | None = ""
+    source: str | None = ""
+    favorite: bool | None = False
+    in_widget: bool | None = True
+    created_at: datetime | None = None
+    model_config = {"from_attributes": True}
+
+
+ATRIBUTOS = Literal["STR", "AGI", "VIT", "INT", "PER", "SEN"]
+
+
+# Tipos de habilidad que conoce el Sistema (ver maestria_plantillas.py)
+CATEGORIAS = Literal["musica", "idioma", "programacion", "arte", "deporte", "escritura",
+                     "estudio", "comunicacion", "estrategia", "cocina", "general"]
+# Rango con el que empiezas si ya dominas algo (el S no se convalida)
+RANGOS_PARTIDA = Literal["E", "D", "C", "B", "A"]
+
+
+class SkillBoardCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    description: str = Field("", max_length=500)          # lo que quieres conseguir
+    stat: ATRIBUTOS = "INT"
+    daily_minutes: int = Field(15, ge=0, le=600)
+    category: CATEGORIAS | None = None                     # vacío = lo detecta el Sistema
+    start_rank: RANGOS_PARTIDA = "E"
+    start_hours: float | None = Field(None, ge=0, le=10000)  # horas que ya llevabas
+
+
+class SkillBoardUpdate(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=80)
+    description: str | None = Field(None, max_length=500)
+    stat: ATRIBUTOS | None = None
+    daily_minutes: int | None = Field(None, ge=0, le=600)
+    category: CATEGORIAS | None = None
+    start_rank: RANGOS_PARTIDA | None = None
+    start_hours: float | None = Field(None, ge=0, le=10000)
+
+
+class QuestCreate(BaseModel):
+    """Un hito personal («tocar en la boda de mi primo»): da XP al cumplirlo, como mucho 300."""
+    title: str = Field(..., min_length=1, max_length=160)
+    xp: int = Field(100, ge=10, le=300)
+
+
+class QuestUpdate(BaseModel):
+    title: str | None = Field(None, min_length=1, max_length=160)
+    xp: int | None = Field(None, ge=10, le=300)
+    done: bool | None = None
+
+
+class MissionDoneIn(BaseModel):
+    """Cumplir una misión del Sistema (o superar una prueba de ascenso)."""
+    date: date_type                                        # la fecha local del móvil
+    minutes: int | None = Field(None, ge=0, le=720)        # vacío = los de la misión
+    note: str = Field("", max_length=1000)                 # en las pruebas, la evidencia
+    criteria: list[bool] | None = Field(None, max_length=10)
+
+
+class WidgetTokenCreate(BaseModel):
+    name: str = Field("Mi móvil", min_length=1, max_length=40)
+
+
+class PushKeys(BaseModel):
+    p256dh: str = Field(..., min_length=40, max_length=200)
+    auth: str = Field(..., min_length=10, max_length=100)
+
+
+class PushSubscribeIn(BaseModel):
+    endpoint: str = Field(..., min_length=20, max_length=1000)
+    keys: PushKeys
+    tz: str = Field("Europe/Madrid", max_length=64)
+    hour: int = Field(22, ge=0, le=23)
+    minute: int = Field(0, ge=0, le=59)
+
+    @field_validator("endpoint")
+    @classmethod
+    def _https(cls, v):
+        if not v.startswith("https://"):
+            raise ValueError("El endpoint push debe ser https://")
+        return v
+
+    @field_validator("tz")
+    @classmethod
+    def _zona(cls, v):
+        from zoneinfo import ZoneInfo
+        try:
+            ZoneInfo(v)
+        except Exception:
+            raise ValueError("Zona horaria desconocida")
+        return v
+
+
+class PushUnsubscribeIn(BaseModel):
+    endpoint: str = Field(..., min_length=20, max_length=1000)

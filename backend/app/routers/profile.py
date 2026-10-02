@@ -9,7 +9,10 @@ industria (ver strength_standards.py), ajustado por tu peso corporal y sexo.
 Sin peso corporal no se puede calcular: el endpoint lo indica con claridad.
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import and_, or_, text
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -17,6 +20,7 @@ from app.auth import get_current_user_id
 from app import models, schemas
 from app import strength_standards as ss
 
+logger = logging.getLogger("perfil")
 router = APIRouter(tags=["profile"])
 
 
@@ -108,68 +112,79 @@ def all_ranks(db: Session = Depends(get_db),
     return {"needs_bodyweight": needs_bw, "ranks": out, "badges": ss.BADGES}
 
 
-# ── Exportación de datos: todo lo tuyo, en un JSON descargable ──
-def _rows(db, model, user_id, order_by=None):
-    """Serializa todas las filas de un modelo del usuario a dicts simples."""
-    q = db.query(model).filter(model.user_id == user_id)
-    out = []
-    for row in q.all():
-        d = {}
-        for col in row.__table__.columns:
-            v = getattr(row, col.name)
-            d[col.name] = v.isoformat() if hasattr(v, "isoformat") else v
-        out.append(d)
-    return out
+# ── Exportación y borrado: recorren TODAS las tablas ─────
+# Se trabaja sobre Base.metadata, no sobre una lista escrita a mano: una tabla
+# nueva queda incluida sola, sin depender de que alguien se acuerde de añadirla.
+
+def _modelos_por_tabla():
+    return {m.class_.__tablename__: m.class_ for m in models.Base.registry.mappers}
+
+
+# Tablas sin user_id que cuelgan de otra que sí lo tiene: (columna, tabla madre)
+_HIJAS = {
+    "sets": ("session_id", "sessions"),
+    "task_completions": ("daily_task_id", "daily_tasks"),
+    "value_checkins": ("value_id", "values"),
+}
+# No se exportan: credenciales, datos técnicos o contadores internos
+_SIN_EXPORTAR = {"widget_tokens", "push_subscriptions", "ai_usage", "server_keys"}
+
+
+def _filtro_de_usuario(modelo, tabla, user_id, mapa):
+    """La condición que selecciona las filas de este usuario en una tabla, o None."""
+    if tabla in _HIJAS:
+        col, madre = _HIJAS[tabla]
+        M = mapa[madre]
+        ids = db_select_ids(M, user_id)
+        return getattr(modelo, col).in_(ids)
+    if tabla == "friendships":
+        return or_(modelo.requester_id == user_id, modelo.addressee_id == user_id)
+    if hasattr(modelo, "user_id"):
+        return modelo.user_id == user_id
+    return None
+
+
+def db_select_ids(M, user_id):
+    from sqlalchemy import select
+    return select(M.id).where(M.user_id == user_id)
+
+
+def _fila(row):
+    d = {}
+    for col in row.__table__.columns:
+        v = getattr(row, col.name)
+        d[col.name] = v.isoformat() if hasattr(v, "isoformat") else v
+    return d
 
 
 @router.get("/export")
 def export_all(db: Session = Depends(get_db),
                user_id: str = Depends(get_current_user_id)):
     """
-    Exporta TODOS los datos del usuario en un único JSON. Tus datos son tuyos:
-    puedes llevártelos cuando quieras.
+    Exporta TODOS los datos del usuario en un único JSON, tabla a tabla. Tus
+    datos son tuyos: puedes llevártelos (o guardarlos como copia) cuando quieras.
     Detalle deliberado: las cartas al futuro aún selladas se exportan SIN su
     texto (solo la fecha de apertura), para no romper su propio sello.
     """
     from datetime import date as date_type
-    data = {
-        "profile": _rows(db, models.UserProfile, user_id),
-        "exercises": _rows(db, models.Exercise, user_id),
-        "sessions": [],
-        "daily_tasks": _rows(db, models.DailyTask, user_id),
-        "random_tasks": _rows(db, models.RandomTask, user_id),
-        "notes": _rows(db, models.Note, user_id),
-        "documents": _rows(db, models.Document, user_id),
-        "sleep": _rows(db, models.SleepLog, user_id),
-        "goals": _rows(db, models.Goal, user_id),
-        "values": _rows(db, models.Value, user_id),
-        "reviews": _rows(db, models.Review, user_id),
-        "decisions": _rows(db, models.Decision, user_id),
-        "letters": [],
-        "readings": _rows(db, models.Reading, user_id),
-        "skills": _rows(db, models.Skill, user_id),
-        "physique_goals": _rows(db, models.PhysiqueGoal, user_id),
-    }
-
-    # Sesiones con sus series dentro
-    for s in db.query(models.Session).filter(models.Session.user_id == user_id).all():
-        data["sessions"].append({
-            "exercise_id": s.exercise_id, "date": s.date.isoformat(),
-            "feelings": s.feelings,
-            "sets": [{"set_number": st.set_number, "reps": st.reps, "weight": st.weight}
-                     for st in s.sets],
-        })
-
-    # Cartas: las selladas van sin cuerpo
-    today = date_type.today()
-    for l in db.query(models.FutureLetter).filter(models.FutureLetter.user_id == user_id).all():
-        sealed = l.open_date > today
-        data["letters"].append({
-            "open_date": l.open_date.isoformat(),
-            "sealed": sealed,
-            "body": None if sealed else l.body,
-        })
-
+    mapa = _modelos_por_tabla()
+    data = {"_exportado": date_type.today().isoformat(), "_cuentas": {}}
+    for tabla in models.Base.metadata.sorted_tables:
+        if tabla.name in _SIN_EXPORTAR or tabla.name not in mapa:
+            continue
+        modelo = mapa[tabla.name]
+        cond = _filtro_de_usuario(modelo, tabla.name, user_id, mapa)
+        if cond is None:
+            continue
+        filas = [_fila(r) for r in db.query(modelo).filter(cond).all()]
+        if tabla.name == "future_letters":
+            hoy = date_type.today()
+            for f in filas:
+                if f.get("open_date") and f["open_date"] > hoy.isoformat():
+                    f["body"] = None
+                    f["sealed"] = True
+        data[tabla.name] = filas
+        data["_cuentas"][tabla.name] = len(filas)
     return data
 
 
@@ -182,13 +197,13 @@ def delete_account(
     """
     Borra TODO lo que la app guarda de este usuario. Sin vuelta atrás.
 
-    El RGPD reconoce el «derecho de supresión»: quien te confía sus datos
-    tiene que poder recuperarlos (exportar) y también borrarlos por completo.
-    Sin esto, la app no cumpliría la ley aunque el resto estuviera perfecto.
+    El RGPD reconoce el «derecho de supresión». Se recorren todas las tablas de
+    hijas a madres (para no chocar con las claves ajenas de PostgreSQL), en una
+    sola transacción: o se borra todo o no se borra nada.
 
-    Se recorren todas las tablas que llevan user_id y se eliminan sus filas.
-    Exige ?confirm=BORRAR para que un clic accidental no destruya un año de
-    registro.
+    Lo único que se conserva es el contador de IA de HOY (sin contenido): así
+    borrar la cuenta no sirve para saltarse el tope diario de gasto.
+    Exige ?confirm=BORRAR para que un clic accidental no destruya un año de registro.
     """
     if confirm != "BORRAR":
         raise HTTPException(
@@ -196,36 +211,41 @@ def delete_account(
             detail="Falta la confirmación. Esta acción borra todos tus datos "
                    "y no se puede deshacer.")
 
+    from datetime import date as date_type
+    mapa = _modelos_por_tabla()
     borradas = {}
-    # Las series cuelgan de las sesiones: se borran primero para no dejar huérfanas
-    sesiones = [s.id for s in db.query(models.Session)
-                .filter(models.Session.user_id == user_id).all()]
-    if sesiones:
-        n = (db.query(models.ExerciseSet)
-             .filter(models.ExerciseSet.session_id.in_(sesiones)).delete(synchronize_session=False))
-        borradas["sets"] = n
-
-    # Lo mismo con las marcas de hábitos cumplidos
-    habitos = [t.id for t in db.query(models.DailyTask)
-               .filter(models.DailyTask.user_id == user_id).all()]
-    if habitos:
-        n = (db.query(models.TaskCompletion)
-             .filter(models.TaskCompletion.daily_task_id.in_(habitos)).delete(synchronize_session=False))
-        borradas["task_completions"] = n
-
-    # Y ahora todo lo que lleva user_id directamente
-    for modelo in models.Base.__subclasses__():
-        if not hasattr(modelo, "user_id"):
+    for tabla in reversed(models.Base.metadata.sorted_tables):   # hijas antes que madres
+        modelo = mapa.get(tabla.name)
+        if modelo is None:
             continue
-        n = db.query(modelo).filter(modelo.user_id == user_id).delete(synchronize_session=False)
+        cond = _filtro_de_usuario(modelo, tabla.name, user_id, mapa)
+        if cond is None:
+            continue
+        if tabla.name == "ai_usage":
+            cond = and_(cond, modelo.day < date_type.today())
+        n = db.query(modelo).filter(cond).delete(synchronize_session=False)
         if n:
-            borradas[modelo.__tablename__] = n
-
+            borradas[tabla.name] = n
     db.commit()
+
+    # La cuenta de acceso (email y contraseña) vive en Supabase Auth. El
+    # backend se conecta como dueño de la base y puede borrarla; si en algún
+    # proyecto no tuviera permiso, los datos ya están borrados y se avisa.
+    cuenta_borrada = False
+    if db.bind.dialect.name == "postgresql":
+        try:
+            db.execute(text("DELETE FROM auth.users WHERE id = CAST(:uid AS uuid)"), {"uid": user_id})
+            db.commit()
+            cuenta_borrada = True
+        except Exception as e:                 # noqa: BLE001
+            db.rollback()
+            logger.warning("No se pudo borrar la cuenta de acceso: %s", e)
+
     return {
         "ok": True,
         "borrado": borradas,
-        "aviso": "Tus datos han sido eliminados de la aplicación. Para borrar "
-                 "también la cuenta de acceso (tu email y contraseña), usa la "
-                 "opción de eliminar cuenta de tu proveedor de identidad.",
+        "cuenta_de_acceso_borrada": cuenta_borrada,
+        "aviso": ("Tus datos y tu cuenta de acceso han sido eliminados." if cuenta_borrada else
+                  "Tus datos han sido eliminados de la aplicación. La cuenta de acceso "
+                  "(email y contraseña) puede borrarse desde Supabase → Authentication."),
     }

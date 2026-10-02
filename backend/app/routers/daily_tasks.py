@@ -11,7 +11,8 @@ hábito y esa fecha, lo actualiza; si no, lo crea. Así marcar/desmarcar
 el mismo día no duplica filas.
 """
 
-from datetime import date as date_type
+from collections import defaultdict
+from datetime import date as date_type, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -19,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth import get_current_user_id
 from app import models, schemas
+from app.fechas import fecha_local, racha
 
 router = APIRouter(prefix="/daily-tasks", tags=["daily_tasks"])
 
@@ -49,6 +51,35 @@ def list_tasks(db: Session = Depends(get_db),
             .filter(models.DailyTask.user_id == user_id,
                     models.DailyTask.active == True)  # noqa: E712
             .all())
+
+
+@router.get("/today", response_model=list[schemas.DailyTaskTodayOut])
+def tasks_today(date: date_type,
+                db: Session = Depends(get_db),
+                user_id: str = Depends(get_current_user_id)):
+    """
+    Los hábitos con su estado de HOY y su racha, en una sola petición.
+    `date` es la fecha local del móvil (el servidor vive en UTC).
+    Antes la app pedía el historial completo de cada hábito por separado.
+    """
+    hoy = fecha_local(date)
+    tareas = (db.query(models.DailyTask)
+              .filter(models.DailyTask.user_id == user_id,
+                      models.DailyTask.active == True)  # noqa: E712
+              .order_by(models.DailyTask.id).all())
+    ids = [t.id for t in tareas]
+    hechos = defaultdict(set)
+    if ids:
+        filas = (db.query(models.TaskCompletion.daily_task_id, models.TaskCompletion.date)
+                 .filter(models.TaskCompletion.daily_task_id.in_(ids),
+                         models.TaskCompletion.done == True,  # noqa: E712
+                         models.TaskCompletion.date >= hoy - timedelta(days=400),
+                         models.TaskCompletion.date <= hoy).all())
+        for tid, dia in filas:
+            hechos[tid].add(dia)
+    return [{"id": t.id, "title": t.title, "active": t.active,
+             "done_today": hoy in hechos[t.id], "streak": racha(hechos[t.id], hoy)}
+            for t in tareas]
 
 
 @router.delete("/{task_id}")

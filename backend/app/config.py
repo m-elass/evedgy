@@ -29,9 +29,20 @@ class Settings(BaseSettings):
     # Opcional: solo si quieres la generación de temas con IA.
     # Si no la pones, la app funciona igual con los temas base.
     ANTHROPIC_API_KEY: str | None = None
+    # Modelo de IA que usan esas funciones (temas, resumen semanal, planes de
+    # habilidades). Se puede cambiar desde Render sin tocar el código.
+    AI_MODELO: str = "claude-sonnet-5-5"
 
     # Dominios del frontend autorizados a llamar a la API (separados por comas).
     CORS_ORIGINS: str = "http://localhost:5173"
+
+    # Avisos de la carta diaria (opcionales):
+    # CRON_SECRET: si lo defines, el reloj que dispara los avisos debe enviarlo
+    #   en la cabecera X-Cron-Secret.
+    # VAPID_SUB: contacto que exigen los servicios push (mailto: o https://).
+    #   Si no lo pones, se usa la dirección de tu web (CORS_ORIGINS).
+    CRON_SECRET: str | None = None
+    VAPID_SUB: str | None = None
 
     # Le decimos de qué archivo leer
     model_config = SettingsConfigDict(env_file=".env")

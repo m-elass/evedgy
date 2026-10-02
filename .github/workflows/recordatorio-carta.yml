@@ -1,0 +1,42 @@
+# ══════════════════════════════════════════════════════════════
+# El reloj de la carta diaria.
+# Cada 15 minutos por la noche llama a la API (/push/run). La API mira a
+# quién le toca el aviso (según la hora que eligió en Ajustes) y solo lo
+# manda si ese día aún no ha escrito su carta, como mucho una vez al día.
+#
+# Necesita en GitHub → Settings → Secrets and variables → Actions:
+#   · Variable  API_URL      → p. ej. https://tu-cuaderno-api.onrender.com
+#   · Secreto   CRON_SECRET  → solo si también lo pusiste en Render (opcional)
+#
+# Horas en UTC: 18:00–23:45 UTC = 20:00–01:45 en Madrid en verano y
+# 19:00–00:45 en invierno.
+# ══════════════════════════════════════════════════════════════
+name: Recordatorio de la carta diaria
+
+on:
+  schedule:
+    - cron: "*/15 18-23 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Despertar el servidor y enviar los avisos que toquen
+        env:
+          API_URL: ${{ vars.API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "Falta la variable API_URL (Settings → Secrets and variables → Actions → Variables)."
+            exit 0
+          fi
+          for intento in 1 2 3 4; do
+            codigo=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API_URL/push/run" \
+              -H "X-Cron-Secret: $CRON_SECRET" --max-time 70) || codigo=000
+            echo "Intento $intento: HTTP $codigo"
+            [ "$codigo" = "200" ] && exit 0
+            sleep 15
+          done
+          echo "El servidor no respondió (quizá estaba despertando). Lo intentará en el siguiente turno."

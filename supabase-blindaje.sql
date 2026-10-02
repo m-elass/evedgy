@@ -11,67 +11,33 @@
 -- https://TU-PROYECTO.supabase.co/rest/v1/notes  saltándose tu backend.
 --
 -- LA SOLUCIÓN
--- Tu backend se conecta como "postgres" (superusuario), que IGNORA el RLS.
--- Por eso podemos cerrar la puerta a cal y canto sin romper nada:
---   1. Activamos RLS en todas las tablas y NO creamos ninguna política:
---      sin política, el acceso por la Data API queda denegado siempre.
+--   1. Activamos RLS en TODAS las tablas de "public" (las que hay hoy y las
+--      que vengan: el bucle no depende de una lista escrita a mano) y NO
+--      creamos ninguna política: sin política, la Data API no puede leer ni
+--      escribir nada.
 --   2. Retiramos los permisos concedidos a anon y authenticated.
 --   3. Dejamos configurado que las tablas FUTURAS nazcan igual de cerradas.
 --
--- Tu app sigue funcionando exactamente igual: entra por el backend, que usa
--- el usuario postgres y filtra por user_id en cada consulta.
+-- ¿Y el backend? Se conecta como "postgres", que es el DUEÑO de las tablas.
+-- Al dueño no le afecta el RLS salvo que se «fuerce» (FORCE). Aquí se deja
+-- explícitamente SIN forzar (NO FORCE), así que la app sigue funcionando
+-- exactamente igual pase lo que pase con los permisos de ese usuario.
+--
+-- Además, desde esta versión el propio backend activa RLS en sus tablas al
+-- arrancar. Este script sigue siendo la llave maestra: ejecútalo una vez.
 -- Es seguro ejecutarlo varias veces.
 -- ═══════════════════════════════════════════════════════════════
 
--- 1) RLS activado en las 24 tablas de la app (sin políticas = todo denegado)
-ALTER TABLE IF EXISTS public."exercises" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."exercises" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."routine_days" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."routine_days" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."sessions" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."sessions" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."sets" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."sets" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."daily_tasks" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."daily_tasks" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."task_completions" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."task_completions" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."random_tasks" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."random_tasks" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."notes" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."notes" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."documents" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."documents" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."sleep_logs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."sleep_logs" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."goals" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."goals" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."values" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."values" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."value_checkins" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."value_checkins" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."reviews" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."reviews" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."decisions" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."decisions" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."future_letters" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."future_letters" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."readings" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."readings" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."harvests" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."harvests" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."skills" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."skills" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."skill_logs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."skill_logs" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."user_profiles" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."user_profiles" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."friendships" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."friendships" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."physique_goals" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."physique_goals" FORCE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."week_overrides" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public."week_overrides" FORCE ROW LEVEL SECURITY;
+-- 1) RLS activado en todas las tablas de la app (sin políticas = todo denegado)
+DO $blindaje$
+DECLARE t record;
+BEGIN
+  FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t.tablename);
+    EXECUTE format('ALTER TABLE public.%I NO FORCE ROW LEVEL SECURITY', t.tablename);
+  END LOOP;
+END
+$blindaje$;
 
 -- 2) Retirar permisos de los roles públicos sobre el esquema de la app
 REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM anon, authenticated;
@@ -86,10 +52,13 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
   REVOKE ALL ON SEQUENCES FROM anon, authenticated;
 
 -- ═══════════════════════════════════════════════════════════════
--- COMPROBACIÓN — ejecútalo después y revisa el resultado
--- rls_activado debe ser TRUE en todas las filas.
+-- COMPROBACIÓN — mira el resultado que aparece abajo
+--   tablas_sin_rls      debe ser 0
+--   permisos_publicos   debe ser 0
+--   tablas_total        es el número de tablas de la app (36 en esta versión)
 -- ═══════════════════════════════════════════════════════════════
-SELECT tablename AS tabla, rowsecurity AS rls_activado
-FROM pg_tables
-WHERE schemaname = 'public'
-ORDER BY rowsecurity, tablename;
+SELECT
+  (SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND NOT rowsecurity) AS tablas_sin_rls,
+  (SELECT count(*) FROM information_schema.role_table_grants
+     WHERE table_schema = 'public' AND grantee IN ('anon', 'authenticated'))       AS permisos_publicos,
+  (SELECT count(*) FROM pg_tables WHERE schemaname = 'public')                      AS tablas_total;

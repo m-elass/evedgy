@@ -78,7 +78,7 @@ def generate_theme(data: ThemeRequest,
     client = anthropic.Anthropic(api_key=api_key)
     try:
         msg = client.messages.create(
-            model="claude-sonnet-4-6",
+            model=settings.AI_MODELO,
             max_tokens=500,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": data.prompt}],

@@ -13,7 +13,8 @@ sabe de quién es y nadie ve lo de otro.
 """
 
 from sqlalchemy import (
-    Column, Integer, String, Text, Float, Boolean, Date, DateTime, ForeignKey
+    Column, Integer, String, Text, Float, Boolean, Date, DateTime, ForeignKey,
+    UniqueConstraint, Index,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -326,18 +327,38 @@ class Harvest(Base):
 
 
 class Skill(Base):
-    """Algo que cultivas (idioma, instrumento...) con progreso y constancia."""
+    """
+    Una habilidad que cultivas (idioma, instrumento, programar...).
+    El progreso se mide como en un juego, pero con maestría de verdad: cada
+    minuto de práctica da experiencia (XP) y las misiones cumplidas dan algo
+    más; la XP marca el nivel y el rango (E → S), y para ascender de rango
+    hay que superar su prueba (ver maestria.py). Nada de eso se guarda: se
+    CALCULA a partir de los registros.
+    """
     __tablename__ = "skills"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, index=True, nullable=False)
     name = Column(String, nullable=False)
     description = Column(Text, default="")
-    level = Column(Integer, default=0)             # nivel actual (0-100, libre)
+    level = Column(Integer, default=0)             # antiguo nivel libre (ya no se usa)
+    # Atributo al que suma, como las estadísticas de un cazador:
+    # STR fuerza · AGI agilidad · VIT vitalidad · INT inteligencia · PER percepción · SEN sentido
+    stat = Column(String, default="INT")
+    daily_minutes = Column(Integer, default=15)    # minutos al día (0 = sin misiones diarias)
+    # Tipo de habilidad (musica, idioma, programacion…). Vacío = lo deduce el
+    # Sistema por el nombre (las habilidades anteriores a esta versión).
+    category = Column(String, nullable=True)
+    placed_rank = Column(String, default="E")      # rango con el que empezaste (convalidado)
+    base_minutes = Column(Integer, default=0)      # práctica previa a la app, en minutos
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     logs = relationship("SkillLog", back_populates="skill",
                         cascade="all, delete-orphan")
+    quests = relationship("SkillQuest", cascade="all, delete-orphan",
+                          order_by="SkillQuest.order")
+    plan = relationship("SkillPlan", uselist=False, cascade="all, delete-orphan")
+    missions = relationship("SkillMission", cascade="all, delete-orphan")
 
 
 class SkillLog(Base):
@@ -352,6 +373,75 @@ class SkillLog(Base):
     note = Column(Text, default="")
 
     skill = relationship("Skill", back_populates="logs")
+
+
+class SkillQuest(Base):
+    """Una misión concreta dentro de una habilidad: un hito con recompensa de XP."""
+    __tablename__ = "skill_quests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    skill_id = Column(Integer, ForeignKey("skills.id"), nullable=False, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    title = Column(String, nullable=False)
+    xp = Column(Integer, default=100)              # recompensa al cumplirla
+    done = Column(Boolean, default=False)
+    done_at = Column(DateTime(timezone=True), nullable=True)
+    order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class SkillPlan(Base):
+    """
+    El plan de misiones de una habilidad hecho a medida por la IA. Si no hay
+    (o la IA no está configurada), el Sistema usa el plan preparado para su
+    tipo de habilidad, así que esta tabla solo guarda lo que la IA aporta.
+    """
+    __tablename__ = "skill_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    skill_id = Column(Integer, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, unique=True)
+    user_id = Column(String, index=True, nullable=False)
+    status = Column(String, default="lista")       # lista · generando · error
+    content = Column(Text, nullable=True)          # el plan en JSON (solo si lo hizo la IA)
+    model = Column(String, nullable=True)
+    error = Column(String, nullable=True)
+    requested_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class SkillMission(Base):
+    """
+    Una misión que el Sistema te asigna: diaria (un día), semanal (una semana,
+    se guarda con su lunes) o prueba de ascenso (hasta que la superes).
+    Los huecos (slot) evitan duplicados aunque lleguen dos peticiones a la vez:
+    0 para la primera, 1 si la cambiaste; en las pruebas, el índice del rango.
+    """
+    __tablename__ = "skill_missions"
+    __table_args__ = (
+        UniqueConstraint("skill_id", "kind", "period", "slot", name="uq_skill_mission_slot"),
+        Index("ix_skill_missions_user_period", "user_id", "period"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    skill_id = Column(Integer, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    kind = Column(String, nullable=False)          # diaria · semanal · prueba
+    period = Column(Date, nullable=False)          # el día · el lunes · 2000-01-01 en las pruebas
+    slot = Column(Integer, nullable=False, default=0)
+    title = Column(String, nullable=False)
+    detail = Column(Text, default="")
+    minutes = Column(Integer, default=0)
+    xp = Column(Integer, default=0)                # recompensa extra al cumplirla
+    status = Column(String, nullable=False, default="activa")   # activa · hecha · cambiada
+    extra = Column(Boolean, nullable=False, default=False)      # pedida a mano: no cuenta para la racha
+    # En una prueba, el rango al que asciende; en una diaria o semanal, el
+    # rango de la prueba que está ensayando (si es un ensayo).
+    rank_target = Column(String, nullable=True)
+    criteria = Column(Text, nullable=True)         # criterios de la prueba (JSON)
+    note = Column(Text, default="")                # lo que anotaste (en las pruebas, la evidencia)
+    log_id = Column(Integer, ForeignKey("skill_logs.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    done_at = Column(DateTime(timezone=True), nullable=True)
 
 
 # ─────────────────────────────────────────────────────────
@@ -420,3 +510,123 @@ class WeekOverride(Base):
     weekday = Column(Integer, nullable=False)              # 0=lunes ... 6=domingo
     exercise_id = Column(Integer, ForeignKey("exercises.id"), nullable=False)
     order = Column(Integer, default=0)
+
+
+# ─────────────────────────────────────────────────────────
+# BLOQUE 7 — CARTA DIARIA, CONOCIMIENTO Y FRASES
+# ─────────────────────────────────────────────────────────
+
+class DailyLetter(Base):
+    """
+    La carta de cada día, escrita al caer la noche para entregarla algún día
+    a una persona. Una sola por día: la fecha es su identidad.
+    """
+    __tablename__ = "daily_letters"
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_daily_letter_user_date"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    date = Column(Date, nullable=False, index=True)
+    greeting = Column(String, default="")          # «Querida…»
+    body = Column(Text, nullable=False)
+    closing = Column(String, default="")           # «Tuyo, …»
+    seal = Column(String, default="carmesi")       # color del lacre
+    words = Column(Integer, default=0)             # palabras (para el archivo, sin leer el texto)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(),
+                        onupdate=func.now())
+
+
+class KnowledgeItem(Base):
+    """
+    Algo que quieres conocer: un libro por leer, una película, una serie, un
+    vídeo, un documental, un podcast o un curso. Con el porqué te interesa.
+    """
+    __tablename__ = "knowledge_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    kind = Column(String, default="libro")         # libro/pelicula/serie/video/documental/podcast/curso/articulo
+    title = Column(String, nullable=False)
+    creator = Column(String, default="")           # autor, director, canal…
+    why = Column(Text, default="")                 # por qué me interesa (opcional)
+    link = Column(String, default="")
+    status = Column(String, default="pendiente")   # pendiente / en_curso / hecho
+    priority = Column(Integer, default=0)          # 0 normal · 1 pronto · 2 imprescindible
+    note = Column(Text, default="")                # qué me llevé (al terminar)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class Quote(Base):
+    """Una frase con hondura, para que vuelva a aparecer en Hoy de vez en cuando."""
+    __tablename__ = "quotes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    text = Column(Text, nullable=False)
+    author = Column(String, default="")
+    source = Column(String, default="")            # obra de la que sale
+    favorite = Column(Boolean, default=False)      # aparece más a menudo
+    in_widget = Column(Boolean, default=True)      # ¿puede salir en el widget del móvil?
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class WeeklySummary(Base):
+    """El resumen semanal ya redactado: se escribe una vez por semana, no en cada visita."""
+    __tablename__ = "weekly_summaries"
+    __table_args__ = (UniqueConstraint("user_id", "week_start", name="uq_weekly_summary"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    week_start = Column(Date, nullable=False)
+    summary = Column(Text, default="")
+    data = Column(Text, default="{}")              # cifras de la semana, en JSON
+    narrated = Column(Boolean, default=False)      # ¿lo redactó la IA?
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ─────────────────────────────────────────────────────────
+# BLOQUE 8 — WIDGETS Y AVISOS
+# ─────────────────────────────────────────────────────────
+
+class WidgetToken(Base):
+    """
+    Llave personal de solo lectura para los widgets del móvil. Se guarda
+    únicamente su huella (SHA-256): ni la base de datos conoce la llave.
+    """
+    __tablename__ = "widget_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    name = Column(String, default="Mi móvil")
+    token_hash = Column(String, unique=True, index=True, nullable=False)
+    prefix = Column(String, default="")            # primeros caracteres, para reconocerla
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class PushSubscription(Base):
+    """Un dispositivo que quiere recibir el aviso de la carta diaria."""
+    __tablename__ = "push_subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    endpoint = Column(String(1000), unique=True, nullable=False)
+    p256dh = Column(String, nullable=False)
+    auth = Column(String, nullable=False)
+    tz = Column(String, default="Europe/Madrid")
+    remind_hour = Column(Integer, default=22)
+    remind_minute = Column(Integer, default=0)
+    last_sent_on = Column(Date, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class ServerKey(Base):
+    """Claves propias del servidor (p. ej. las de los avisos push). No son de ningún usuario."""
+    __tablename__ = "server_keys"
+
+    name = Column(String, primary_key=True)
+    value = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -12,7 +12,7 @@ Recuerda el patrón: todo filtra por user_id (viene del token verificado).
 from datetime import date as date_type
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.auth import get_current_user_id
@@ -101,7 +101,8 @@ def list_sessions(
 
     Sin filtros, devuelve todas (el historial completo).
     """
-    q = db.query(models.Session).filter(models.Session.user_id == user_id)
+    q = (db.query(models.Session).options(selectinload(models.Session.sets))
+         .filter(models.Session.user_id == user_id))
     if start is not None:
         q = q.filter(models.Session.date >= start)
     if end is not None:
@@ -214,12 +215,17 @@ def best_set(
     más que 12×70kg aunque el peso sea menor: así la "mejor serie" es la más
     fuerte de verdad, no simplemente la más pesada.
     """
-    from app.strength_standards import estimate_1rm
-
     _check_exercise_owned(db, exercise_id, user_id)
-    sesiones = (db.query(models.Session)
+    sesiones = (db.query(models.Session).options(selectinload(models.Session.sets))
                 .filter(models.Session.user_id == user_id,
                         models.Session.exercise_id == exercise_id).all())
+    return calcular_mejor(sesiones)
+
+
+def calcular_mejor(sesiones):
+    """La serie de más 1RM estimado (Epley) entre todas las sesiones dadas."""
+    from app.strength_standards import estimate_1rm
+
     mejor = None
     for ses in sesiones:
         for st in ses.sets:

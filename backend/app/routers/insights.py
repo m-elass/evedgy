@@ -14,7 +14,7 @@ La lógica de entrenamiento está comentada para que se entienda el "por qué".
 from datetime import date as date_type
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.auth import get_current_user_id
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/insights", tags=["insights"])
 
 def _sessions_of(db, user_id, exercise_id):
     """Sesiones de un ejercicio, de la más antigua a la más reciente."""
-    return (db.query(models.Session)
+    return (db.query(models.Session).options(selectinload(models.Session.sets))
             .filter(models.Session.user_id == user_id,
                     models.Session.exercise_id == exercise_id)
             .order_by(models.Session.date.asc())
@@ -39,12 +39,10 @@ def _best_set(sets):
     return max(sets, key=lambda s: (s.weight, s.reps))
 
 
-@router.get("/next-set/{exercise_id}")
-def next_set(exercise_id: int,
-             db: Session = Depends(get_db),
-             user_id: str = Depends(get_current_user_id)):
+def calcular_siguiente(sessions):
     """
-    Sugiere qué hacer hoy en este ejercicio, mirando la última sesión.
+    Sugiere qué hacer hoy en un ejercicio, mirando la última sesión.
+    `sessions`: sus sesiones de la más antigua a la más reciente.
     Regla de progresión sencilla y prudente:
       - Si en la última sesión completaste reps altas (>=10) en tu mejor serie,
         sube el peso un pequeño incremento (2.5 kg) y baja un poco las reps.
@@ -52,13 +50,6 @@ def next_set(exercise_id: int,
       - En medio, repite el mismo peso intentando una repetición más.
     No es dogma: es un punto de partida, el usuario decide.
     """
-    ex = (db.query(models.Exercise)
-          .filter(models.Exercise.id == exercise_id,
-                  models.Exercise.user_id == user_id).first())
-    if ex is None:
-        raise HTTPException(status_code=404, detail="Ejercicio no encontrado")
-
-    sessions = _sessions_of(db, user_id, exercise_id)
     if not sessions:
         return {"has_history": False,
                 "message": "Primera vez con este ejercicio. Empieza con un peso cómodo."}
@@ -82,6 +73,19 @@ def next_set(exercise_id: int,
     return {"has_history": True,
             "last": {"weight": weight, "reps": reps, "date": last.date.isoformat()},
             "suggestion": suggestion}
+
+
+@router.get("/next-set/{exercise_id}")
+def next_set(exercise_id: int,
+             db: Session = Depends(get_db),
+             user_id: str = Depends(get_current_user_id)):
+    """Sugerencia de peso y reps para hoy (ver calcular_siguiente)."""
+    ex = (db.query(models.Exercise)
+          .filter(models.Exercise.id == exercise_id,
+                  models.Exercise.user_id == user_id).first())
+    if ex is None:
+        raise HTTPException(status_code=404, detail="Ejercicio no encontrado")
+    return calcular_siguiente(_sessions_of(db, user_id, exercise_id))
 
 
 @router.get("/records")
@@ -119,17 +123,13 @@ def records(db: Session = Depends(get_db),
     return {"records": out}
 
 
-@router.get("/deload/{exercise_id}")
-def deload(exercise_id: int,
-           db: Session = Depends(get_db),
-           user_id: str = Depends(get_current_user_id)):
+def calcular_descarga(sessions):
     """
     Detecta estancamiento para sugerir una semana de descarga (deload).
     Heurística prudente: mira las últimas 4 sesiones; si el mejor peso no ha
     mejorado (o ha bajado) en ese tramo, sugiere bajar ~10% una semana para
     recuperar y volver con más fuerza. Si hay progreso, no molesta.
     """
-    sessions = _sessions_of(db, user_id, exercise_id)
     recent = sessions[-4:]
     if len(recent) < 4:
         return {"suggest_deload": False,
@@ -145,6 +145,14 @@ def deload(exercise_id: int,
     return {"suggest_deload": True,
             "message": "Llevas 4 sesiones sin mejorar. Una semana de descarga puede ayudarte.",
             "suggested_weight": round(base * 0.9, 1)}
+
+
+@router.get("/deload/{exercise_id}")
+def deload(exercise_id: int,
+           db: Session = Depends(get_db),
+           user_id: str = Depends(get_current_user_id)):
+    """¿Toca una semana de descarga? (ver calcular_descarga)."""
+    return calcular_descarga(_sessions_of(db, user_id, exercise_id))
 
 
 @router.get("/tapestry")
