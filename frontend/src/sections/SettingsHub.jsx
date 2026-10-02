@@ -9,30 +9,30 @@
  * Se abre con el engranaje de la cabecera.
  */
 import React, { useEffect, useState } from "react";
-import { User, Eye, EyeOff, Palette, Download, Info } from "lucide-react";
-import { api } from "../lib/api";
+import { User, Eye, EyeOff, Palette, Download, Info, Bell, Smartphone } from "lucide-react";
+import { api, BASE } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD } from "../lib/theme";
 import { SectionHeader, Field, SolidBtn, Loading } from "../components/ui";
 import { HelpDot } from "../components/Help";
 import InstallApp from "../components/InstallApp";
 import Legal from "../components/Legal";
+import Avisos from "../components/Avisos";
+import WidgetKit from "../components/WidgetKit";
 
 export default function SettingsHub({ onNavigate }) {
-  const [profile, setProfile] = useState(null);
+  const { data: profile, gate, reload: load } = useApi("profile", api.getProfile);
   const [bw, setBw] = useState("");
   const [alias, setAlias] = useState("");
   const [sex, setSex] = useState("m");
   const [saved, setSaved] = useState(true);
   const [exporting, setExporting] = useState(false);
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try {
-      const p = await api.getProfile();
-      setProfile(p); setAlias(p.display_name || "");
-      setBw(p.bodyweight ? String(p.bodyweight) : ""); setSex(p.sex || "m");
-    } catch { setProfile({}); }
-  }
+  useEffect(() => {
+    if (!profile) return;
+    setAlias(profile.display_name || "");
+    setBw(profile.bodyweight ? String(profile.bodyweight) : ""); setSex(profile.sex || "m");
+  }, [profile]);
   async function saveProfile() {
     await api.updateProfile({ display_name: alias.trim(), bodyweight: parseFloat(bw) || 0, sex });
     setSaved(true); load();
@@ -56,7 +56,7 @@ export default function SettingsHub({ onNavigate }) {
     } finally { setExporting(false); }
   }
 
-  if (profile === null) return (<><SectionHeader kicker="Tu cuaderno" title="Ajustes" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Tu cuaderno" title="Ajustes" />{gate}</>);
 
   return (
     <div>
@@ -99,6 +99,16 @@ export default function SettingsHub({ onNavigate }) {
         </div>
       </Block>
 
+      {/* Aviso de la carta diaria */}
+      <Block icon={<Bell size={15} color={C.olive} />} title="Aviso de la carta diaria">
+        <Avisos />
+      </Block>
+
+      {/* Widgets */}
+      <Block icon={<Smartphone size={15} color={C.olive} />} title="Widgets del móvil">
+        <WidgetKit />
+      </Block>
+
       {/* Apariencia */}
       <Block icon={<Palette size={15} color={C.rust} />} title="Apariencia">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -133,6 +143,9 @@ export default function SettingsHub({ onNavigate }) {
         <div style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: C.sepia, lineHeight: 1.6 }}>
           Tu cuaderno · gimnasio y vida deliberada.<br />
           Hecho a medida, con el tema Iudex: azul profundo y oro para lo que cuesta.
+          <div style={{ marginTop: 10, fontSize: 11.5, opacity: .85 }}>
+            Versión {__VERSION__} · servidor {new URL(BASE).host}
+          </div>
         </div>
       </Block>
     </div>

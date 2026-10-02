@@ -6,38 +6,37 @@
  */
 import React, { useEffect, useState } from "react";
 import { Trash2, Compass } from "lucide-react";
-import { api } from "../lib/api";
+import { api, ymd } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD } from "../lib/theme";
 import { SectionHeader, Collapsible, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => ymd();   // fecha LOCAL (toISOString daba la de Londres)
+
+async function cargarValores() {
+  const values = await api.listValues();
+  return Promise.all(values.map(async (v) => {
+    const checkins = await api.listValueCheckins(v.id);
+    const recent = checkins.slice(0, 4);
+    const avg = recent.length ? (recent.reduce((a, c) => a + c.score, 0) / recent.length) : null;
+    return { ...v, checkins, avg };
+  }));
+}
 
 export default function Values() {
-  const [items, setItems] = useState(null);
+  // Los check-ins de cada valor se piden a la vez (en paralelo), no uno tras otro
+  const { data: items, gate, reload: load } = useApi("values", cargarValores);
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try {
-      const values = await api.listValues();
-      const enriched = await Promise.all(values.map(async (v) => {
-        const checkins = await api.listValueCheckins(v.id);
-        const recent = checkins.slice(0, 4);
-        const avg = recent.length ? (recent.reduce((a, c) => a + c.score, 0) / recent.length) : null;
-        return { ...v, checkins, avg };
-      }));
-      setItems(enriched);
-    } catch { setItems([]); }
-  }
   async function create() {
     if (!title.trim()) return;
     await api.createValue({ title: title.trim(), description: desc.trim() });
     setTitle(""); setDesc(""); setAdding(false); load();
   }
 
-  if (items === null) return (<><SectionHeader kicker="Vida · Brújula" title="Valores" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Vida · Brújula" title="Valores" />{gate}</>);
 
   return (
     <div>

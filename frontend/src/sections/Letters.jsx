@@ -10,11 +10,12 @@
  */
 import React, { useEffect, useState } from "react";
 import { Lock, Mail, MailOpen, ArrowLeft } from "lucide-react";
-import { api } from "../lib/api";
+import { api, ymd } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => ymd();   // fecha LOCAL (toISOString daba la de Londres)
 
 function daysUntil(iso) {
   const target = new Date(iso + "T00:00:00");
@@ -26,16 +27,12 @@ function fmtLong(iso) {
 }
 
 export default function Letters() {
-  const [items, setItems] = useState(null);
+  const { data: items, gate, reload: load } = useApi("letters", api.listLetters);
   const [writing, setWriting] = useState(false);
   const [reading, setReading] = useState(null);   // carta abierta a pantalla completa
   const [body, setBody] = useState("");
   const [openDate, setOpenDate] = useState("");
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try { setItems(await api.listLetters()); } catch { setItems([]); }
-  }
   async function send() {
     if (!body.trim() || !openDate) return;
     await api.createLetter({ body: body.trim(), open_date: openDate });
@@ -52,7 +49,7 @@ export default function Letters() {
   }
 
   if (reading) return <LetterReader letter={reading} onBack={() => setReading(null)} />;
-  if (items === null) return (<><SectionHeader kicker="Futuro · Voz" title="Cartas" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Futuro · Voz" title="Cartas" />{gate}</>);
 
   return (
     <div>

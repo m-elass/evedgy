@@ -80,3 +80,34 @@ export async function vibrar(fuerte = false) {
   }
   if (navigator.vibrate) navigator.vibrate(fuerte ? [120, 80, 120] : 40);
 }
+
+const ID_CARTA = 2201;
+
+/**
+ * Recordatorio diario de la carta en la app nativa: lo programa el propio
+ * sistema operativo, cada día a la hora elegida, sin servidor.
+ */
+export async function programarRecordatorioCarta(hora, minuto) {
+  const c = await cargar();
+  if (!c) return false;
+  try {
+    await c.LocalNotifications.cancel({ notifications: [{ id: ID_CARTA }] });
+    await c.LocalNotifications.schedule({
+      notifications: [{
+        id: ID_CARTA,
+        title: "Tu carta de hoy te espera",
+        body: "Antes de dormir, cuéntale tu día. Unas líneas bastan.",
+        schedule: { on: { hour: hora, minute: minuto }, repeats: true, allowWhileIdle: true },
+        extra: { url: "/?ir=dailyletter" },
+        smallIcon: "ic_stat_icon",
+      }],
+    });
+    return true;
+  } catch { return false; }
+}
+
+export async function cancelarRecordatorioCarta() {
+  const c = await cargar();
+  if (!c) return;
+  try { await c.LocalNotifications.cancel({ notifications: [{ id: ID_CARTA }] }); } catch { /* nada */ }
+}

@@ -3,39 +3,102 @@
  * ──────────
  * El ÚNICO sitio del frontend que habla con nuestro backend FastAPI.
  * Todo lo demás llama a estas funciones, nunca a fetch() directamente.
- * Así, si algo cambia (la URL, cómo se manda el token...), se toca aquí y ya.
  *
- * Lo importante: antes de cada petición pedimos a Supabase el token del
- * usuario logueado y lo adjuntamos en la cabecera Authorization. Eso es lo
- * que el backend verifica para saber quién eres.
+ * Cada petición lleva el token del usuario (cabecera Authorization), tiene un
+ * tiempo máximo y, si falla, lanza un ApiError que dice QUÉ pasó:
+ *   · "sin_sesion" → no hay sesión: la petición ni siquiera sale.
+ *   · "red"        → sin conexión o el servidor no responde.
+ *   · "timeout"    → tardó demasiado (p. ej. el servidor estaba dormido).
+ *   · "http"       → el servidor respondió con un error (status 4xx/5xx).
+ * Así la app nunca confunde «falló la red» con «no tienes datos».
  */
 import { supabase } from "./supabase";
 
-// La URL del backend. En local apunta a localhost; al desplegar, cambiará
-// por la URL pública (la pondremos en el .env, no aquí).
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+// La URL del backend (se fija al construir la web, variable VITE_API_URL).
+export const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-async function authHeaders() {
-  // Pedimos la sesión actual a Supabase y sacamos el token de acceso
-  const { data } = await supabase.auth.getSession();
-  const token = data?.session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+export class ApiError extends Error {
+  constructor(code, { status = 0, detail = "", retryAfter = 0 } = {}) {
+    super(detail || code);
+    this.code = code;
+    this.status = status;
+    this.detail = detail;
+    this.retryAfter = retryAfter;
+  }
+  /** Frase para el usuario: qué pasó y qué hacer. */
+  get humano() {
+    if (this.code === "sin_sesion") return "Tu sesión ha caducado. Vuelve a entrar.";
+    if (this.code === "red") return "Sin conexión con el servidor. No se ha guardado.";
+    if (this.code === "timeout") return "El servidor tarda en responder (puede estar despertando). Inténtalo de nuevo.";
+    if (this.status === 429) return "Demasiadas peticiones seguidas. Espera un momento.";
+    if (this.status >= 500) return "El servidor ha fallado. Inténtalo de nuevo en un momento.";
+    return this.detail || "No se pudo completar.";
+  }
 }
 
-async function request(path, { method = "GET", body } = {}) {
-  const headers = { "Content-Type": "application/json", ...(await authHeaders()) };
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    // Si el backend devuelve error, lo lanzamos para que la pantalla lo maneje
-    const detail = await res.text();
-    throw new Error(`${res.status}: ${detail}`);
+async function token() {
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.access_token || null;
+}
+
+async function request(path, { method = "GET", body, timeout } = {}) {
+  const t = await token();
+  if (!t) throw new ApiError("sin_sesion", { status: 401 });
+
+  // Lecturas: 20 s (se reintentan solas). Escrituras: 90 s, porque cortar una
+  // escritura no la deshace y un servidor dormido tarda en despertar: si se
+  // cortara antes, se podría repetir algo que en realidad sí se guardó.
+  const limite = timeout ?? (method === "GET" ? 20000 : 90000);
+  const ctrl = new AbortController();
+  const reloj = setTimeout(() => ctrl.abort(), limite);
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    throw new ApiError(e?.name === "AbortError" ? "timeout" : "red");
+  } finally {
+    clearTimeout(reloj);
   }
-  // Algunos DELETE devuelven {ok:true}; otros endpoints, datos. Parseamos JSON.
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = await res.json();
+      detail = typeof j?.detail === "string" ? j.detail : "";
+    } catch { /* cuerpo vacío o no JSON */ }
+    throw new ApiError("http", {
+      status: res.status, detail,
+      retryAfter: parseInt(res.headers.get("Retry-After") || "0", 10) || 0,
+    });
+  }
   return res.status === 204 ? null : res.json();
+}
+
+/** Despierta al servidor nada más abrir la app (Render se duerme tras 15 min sin uso). */
+export function despertar() {
+  fetch(`${BASE}/`, { mode: "no-cors", cache: "no-store" }).catch(() => {});
+}
+
+/** Fecha LOCAL del móvil (AAAA-MM-DD). toISOString() daba la de Londres. */
+export function ymd(d = new Date()) {
+  const x = new Date(d);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+}
+/** Lunes de la semana de una fecha. */
+export function lunes(d = new Date()) {
+  const x = new Date(d); x.setHours(0, 0, 0, 0);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
+/** «Día lógico» de la carta: hasta las 4 de la madrugada sigue siendo ayer. */
+export function diaDeCarta(d = new Date()) {
+  const x = new Date(d);
+  if (x.getHours() < 4) x.setDate(x.getDate() - 1);
+  return ymd(x);
 }
 
 // ── Funciones por módulo ──────────────────────────────────
@@ -61,7 +124,6 @@ export const api = {
   updateSession: (id, data) => request(`/sessions/${id}`, { method: "PATCH", body: data }),
   deleteSession: (id) => request(`/sessions/${id}`, { method: "DELETE" }),
   bestSet: (exerciseId) => request(`/sessions/best/${exerciseId}`),
-  deleteSession: (id) => request(`/sessions/${id}`, { method: "DELETE" }),
   exerciseProgress: (id) => request(`/sessions/progress/${id}`),
 
   // Hábitos diarios
@@ -193,4 +255,60 @@ export const api = {
   deleteSkill: (id) => request(`/skills/${id}`, { method: "DELETE" }),
   logSkill: (id, data) => request(`/skills/${id}/log`, { method: "POST", body: data }),
   listSkillLogs: (id) => request(`/skills/${id}/logs`),
+
+  // ── Agregados: una pantalla, una petición ──
+  today: (date) => request(`/today?date=${date}`),
+  dailyToday: (date) => request(`/daily-tasks/today?date=${date}`),
+  trainingWeek: (start) => request(`/training/week/${start}`),
+  summaryWeek: (start) => request(`/summary/weeks/${start}`),
+
+  // ── Carta diaria ──
+  dailyLetters: (date) => request(`/daily-letters?date=${date}`),
+  dailyLetter: (date) => request(`/daily-letters/${date}`),
+  dailyLetterBook: () => request("/daily-letters/book"),
+  saveDailyLetter: (date, data) => request(`/daily-letters/${date}`, { method: "PUT", body: data }),
+  deleteDailyLetter: (date) => request(`/daily-letters/${date}`, { method: "DELETE" }),
+
+  // ── Conocimiento ──
+  listKnowledge: () => request("/knowledge"),
+  createKnowledge: (data) => request("/knowledge", { method: "POST", body: data }),
+  updateKnowledge: (id, data) => request(`/knowledge/${id}`, { method: "PATCH", body: data }),
+  deleteKnowledge: (id) => request(`/knowledge/${id}`, { method: "DELETE" }),
+  startReading: (id) => request(`/knowledge/${id}/start-reading`, { method: "POST" }),
+  taskToKnowledge: (taskId, kind) => request(`/knowledge/from-task/${taskId}`, { method: "POST", body: { kind } }),
+
+  // ── Frases ──
+  listQuotes: () => request("/quotes"),
+  createQuote: (data) => request("/quotes", { method: "POST", body: data }),
+  updateQuote: (id, data) => request(`/quotes/${id}`, { method: "PATCH", body: data }),
+  deleteQuote: (id) => request(`/quotes/${id}`, { method: "DELETE" }),
+
+  // ── Habilidades (el Sistema) ──
+  skillBoard: (date) => request(`/skill-board?date=${date}`),
+  createSkillB: (data) => request("/skill-board/skills", { method: "POST", body: data }),
+  updateSkillB: (id, data) => request(`/skill-board/skills/${id}`, { method: "PATCH", body: data }),
+  logPractice: (id, data) => request(`/skill-board/skills/${id}/log`, { method: "POST", body: data }),
+  deletePractice: (logId) => request(`/skill-board/logs/${logId}`, { method: "DELETE" }),
+  requestDaily: (id, date) => request(`/skill-board/skills/${id}/daily`, { method: "POST", body: { date } }),
+  makePlan: (id) => request(`/skill-board/skills/${id}/plan`, { method: "POST" }),
+  dropPlan: (id) => request(`/skill-board/skills/${id}/plan`, { method: "DELETE" }),
+  completeMission: (id, data) => request(`/skill-board/missions/${id}/complete`, { method: "POST", body: data }),
+  undoMission: (id, date) => request(`/skill-board/missions/${id}/undo`, { method: "POST", body: { date } }),
+  rerollMission: (id, date) => request(`/skill-board/missions/${id}/reroll`, { method: "POST", body: { date } }),
+  createQuest: (id, data) => request(`/skill-board/skills/${id}/quests`, { method: "POST", body: data }),
+  updateQuest: (qid, data) => request(`/skill-board/quests/${qid}`, { method: "PATCH", body: data }),
+  deleteQuest: (qid) => request(`/skill-board/quests/${qid}`, { method: "DELETE" }),
+  taskToSkill: (taskId) => request(`/skill-board/from-task/${taskId}`, { method: "POST" }),
+
+  // ── Widgets del móvil (llaves de solo lectura) ──
+  widgetTokens: () => request("/widget/tokens"),
+  createWidgetToken: (name) => request("/widget/tokens", { method: "POST", body: { name } }),
+  revokeWidgetToken: (id) => request(`/widget/tokens/${id}`, { method: "DELETE" }),
+
+  // ── Avisos push (carta diaria) ──
+  pushConfig: () => request("/push/config"),
+  pushSubscriptions: () => request("/push/subscriptions"),
+  pushSubscribe: (data) => request("/push/subscribe", { method: "POST", body: data }),
+  pushUnsubscribe: (endpoint) => request("/push/subscribe", { method: "DELETE", body: { endpoint } }),
+  pushTest: () => request("/push/test", { method: "POST" }),
 };

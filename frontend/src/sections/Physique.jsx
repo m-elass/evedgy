@@ -7,31 +7,28 @@
  */
 import React, { useEffect, useState } from "react";
 import { Flame, Target, Calendar } from "lucide-react";
-import { api } from "../lib/api";
+import { api, ymd } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader, Field, SolidBtn, Loading } from "../components/ui";
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => ymd();   // fecha LOCAL (toISOString daba la de Londres)
 
 export default function Physique() {
-  const [data, setData] = useState(null);
+  const { data, gate, reload: load } = useApi("physique", api.getPhysiqueGoal);
   const [editing, setEditing] = useState(false);
   const [desc, setDesc] = useState("");
   const [target, setTarget] = useState("");
   const [weekly, setWeekly] = useState(3);
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try { setData(await api.getPhysiqueGoal()); } catch { setData({ has_goal: false }); }
-  }
   async function save() {
     if (!target) return;
     await api.setPhysiqueGoal({ description: desc.trim(), start_date: todayStr(), target_date: target, weekly_target: weekly });
     setEditing(false); setDesc(""); setTarget(""); load();
   }
-  async function remove() { await api.deletePhysiqueGoal(); setData({ has_goal: false }); }
+  async function remove() { await api.deletePhysiqueGoal(); load(); }
 
-  if (data === null) return (<><SectionHeader kicker="Cuerpo · Meta" title="Tu cuenta atrás" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Cuerpo · Meta" title="Tu cuenta atrás" />{gate}</>);
 
   // Formulario (sin meta o editando)
   if (!data.has_goal || editing) {

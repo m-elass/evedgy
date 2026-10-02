@@ -157,7 +157,8 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:20vh;z-inde
 .smap-wrap:active{cursor:grabbing}
 @keyframes surface{from{opacity:0;transform:scale(1.45)}to{opacity:1;transform:none}}
 .smap{position:absolute;left:0;top:0;will-change:transform}
-.mdot{position:absolute;border-radius:50%;background:#fff;animation:twinkle ease-in-out infinite}
+.mdot{position:absolute;border-radius:50%;background:#fff}
+.mdot.tw{animation:twinkle ease-in-out infinite;will-change:opacity}
 @keyframes twinkle{0%,100%{opacity:.22}50%{opacity:1}}
 .mzone{position:absolute;transform:translate(-50%,-50%);pointer-events:none;
   font-family:'Cormorant Garamond',serif;font-size:15px;letter-spacing:.5em;text-transform:uppercase;
@@ -197,7 +198,7 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:20vh;z-inde
 .mdot.big{box-shadow:0 0 7px 1.5px rgba(255,255,255,.85)}
 
 /* nebulosas del lienzo */
-.neb{position:absolute;border-radius:50%;filter:blur(26px);pointer-events:none}
+.neb{position:absolute;border-radius:50%;pointer-events:none}
 
 /* la etiqueta bajo cada estrella, con más presencia */
 .stlab{letter-spacing:.02em}
@@ -267,8 +268,10 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:20vh;z-inde
 .stnode{animation:starpop .55s cubic-bezier(.2,.9,.3,1.25) both}
 @keyframes starpop{from{opacity:0;transform:translate(-50%,-50%) scale(.35)}
   to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
-.sttw{display:block;animation:sttw 4.2s ease-in-out infinite}
-@keyframes sttw{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.05);filter:brightness(1.2)}}
+.sttw{display:block;animation:sttw 4.2s ease-in-out infinite;will-change:transform}
+/* solo transform: se anima en la GPU sin repintar la estrella (antes, filter: brightness repintaba 22 SVG con sombra en cada fotograma) */
+@keyframes sttw{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.sparks{will-change:transform}
 .corona{transform-box:view-box;transform-origin:center;animation:coronaspin 48s linear infinite}
 @keyframes coronaspin{to{transform:rotate(360deg)}}
 
@@ -276,3 +279,14 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:20vh;z-inde
 @media (prefers-reduced-motion: reduce){
   .flow,.mdot,.sttw,.meteors i,.corona,.clouds b,.glints,.sea::before,.sea::after,.sea i{animation:none !important}
 }
+
+/* ── Avisos, estado de conexión y pequeños detalles ── */
+.toast-in{animation:toastIn .32s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+button.toast-in{animation-name:pillIn}
+@keyframes pillIn{from{opacity:0;transform:translate(-50%,-6px)}to{opacity:1;transform:translate(-50%,0)}}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.frase-texto{animation:fraseIn .6s ease both}
+@keyframes fraseIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.toast-in,.spin,.frase-texto,.mdot.tw{animation:none !important}}

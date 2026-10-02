@@ -5,60 +5,48 @@
  * La racha se calcula contando dias consecutivos hacia atras con done=true,
  * usando el historial de completados (listCompletions).
  */
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Check, Flame, Trash2 } from "lucide-react";
-import { api } from "../lib/api";
+import { api, ymd } from "../lib/api";
+import { useApi, useFijarCache, useRefrescar } from "../lib/useApi";
+import { avisar } from "../lib/toast";
 import { C, FONT_BODY } from "../lib/theme";
-import { SectionHeader, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
+import { SectionHeader, AddBtn, Field, SolidBtn, Empty } from "../components/ui";
 import { HelpDot } from "../components/Help";
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
-
-// Calcula la racha: dias seguidos terminados en hoy (o ayer) con done=true
-function streakFrom(completions) {
-  const done = new Set(completions.filter((c) => c.done).map((c) => c.date));
-  let streak = 0;
-  let d = new Date();
-  // Si hoy no esta hecho, la racha puede venir de ayer; empezamos por hoy igual
-  for (let i = 0; i < 400; i++) {
-    const key = d.toISOString().slice(0, 10);
-    if (done.has(key)) { streak++; d.setDate(d.getDate() - 1); }
-    else if (i === 0) { d.setDate(d.getDate() - 1); } // permite que hoy aun no este hecho
-    else break;
-  }
-  return streak;
-}
-
 export default function DailyTasks() {
-  const [items, setItems] = useState(null);
+  const hoy = ymd();
+  // Hábitos con su estado de hoy y su racha, ya calculados en el servidor
+  const { data: base, gate } = useApi("daily", api.dailyToday, { params: [hoy] });
+  const [pend, setPend] = useState({});
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
+  const fijar = useFijarCache();
+  const refrescar = useRefrescar();
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try {
-      const tasks = await api.listDailyTasks();
-      // Para cada habito, traemos sus completados para saber racha y estado de hoy
-      const enriched = await Promise.all(tasks.map(async (t) => {
-        const comps = await api.listCompletions(t.id);
-        const doneToday = comps.some((c) => c.date === todayStr() && c.done);
-        return { ...t, streak: streakFrom(comps), doneToday };
-      }));
-      setItems(enriched);
-    } catch { setItems([]); }
-  }
   async function create() {
     if (!title.trim()) return;
     await api.createDailyTask({ title: title.trim() });
-    setTitle(""); setAdding(false); load();
+    setTitle(""); setAdding(false); refrescar("daily", "today");
   }
   async function toggleToday(t) {
-    await api.completeDailyTask(t.id, { date: todayStr(), done: !t.doneToday });
-    load();
+    if (pend[t.id] !== undefined) return;
+    const nuevo = !t.doneToday;
+    setPend((p) => ({ ...p, [t.id]: nuevo }));
+    try {
+      await api.completeDailyTask(t.id, { date: hoy, done: nuevo });
+      fijar("daily", [hoy], (d) => d && d.map((x) => (x.id === t.id ? { ...x, done_today: nuevo } : x)));
+      refrescar("daily", "today");
+    } catch (e) {
+      avisar(e?.humano || "No se pudo marcar el hábito.");
+    } finally {
+      setPend((p) => { const r = { ...p }; delete r[t.id]; return r; });
+    }
   }
-  async function remove(id) { await api.deleteDailyTask(id); load(); }
+  async function remove(id) { await api.deleteDailyTask(id); refrescar("daily", "today"); }
 
-  if (items === null) return (<><SectionHeader kicker="Hacer - Cada dia" title="Habitos diarios" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Hacer - Cada dia" title="Habitos diarios" />{gate}</>);
+  const items = base.map((t) => ({ ...t, doneToday: pend[t.id] !== undefined ? pend[t.id] : t.done_today }));
 
   return (
     <div>

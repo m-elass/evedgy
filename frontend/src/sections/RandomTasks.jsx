@@ -10,32 +10,54 @@
  *   · Se puede clasificar en cualquier momento, también tareas viejas: cada
  *     tarea lleva un selector para moverla de sección con un toque.
  */
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Check, Trash2, Tag, Plus, X, Pencil, ChevronRight } from "lucide-react";
 import { api } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
+import { avisar } from "../lib/toast";
 import { C, FONT_BODY, FONT_DISPLAY, GRAD } from "../lib/theme";
-import { SectionHeader, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
+import { SectionHeader, Field, SolidBtn, Empty } from "../components/ui";
 import { HelpDot } from "../components/Help";
+
+/* A dónde se puede llevar una tarea que en realidad es otra cosa */
+const DESTINOS = [
+  ["k:libro", "Por leer · libro"], ["k:articulo", "Por leer · artículo"],
+  ["k:pelicula", "Por ver · película"], ["k:serie", "Por ver · serie"],
+  ["k:video", "Por ver · vídeo"], ["k:documental", "Por ver · documental"],
+  ["k:podcast", "Por aprender · podcast"], ["k:curso", "Por aprender · curso"],
+  ["skill", "Habilidades · objetivo a desarrollar"],
+];
+const ESTRELLA_DE = { libro: "Por leer", articulo: "Por leer", pelicula: "Por ver", serie: "Por ver",
+  video: "Por ver", documental: "Por ver", podcast: "Por aprender", curso: "Por aprender" };
+
+/* Qué secciones tienes abiertas: se recuerda en este móvil */
+const CLAVE_ABIERTAS = "tc:tareas:abiertas";
+function leerAbiertas() {
+  try { return JSON.parse(localStorage.getItem(CLAVE_ABIERTAS) || "{}") || {}; } catch { return {}; }
+}
 
 /* Colores propuestos al crear una sección */
 const PALETA = ["#E8B84B", "#7FE0F5", "#B79CFF", "#F0975C", "#8FD694", "#F27E9D"];
 
 export default function RandomTasks() {
-  const [tasks, setTasks] = useState(null);
-  const [secciones, setSecciones] = useState([]);
+  const { data: tasks, gate: gateT } = useApi("tasks", api.listRandomTasks);
+  const { data: seccionesD, gate: gateS } = useApi("sections", api.listTaskSections);
+  const secciones = seccionesD || [];
+  const refrescar = useRefrescar();
+  const cargar = () => refrescar("tasks", "sections");
   const [texto, setTexto] = useState("");
   const [destino, setDestino] = useState("");        // sección de la tarea nueva
   const [gestionar, setGestionar] = useState(false); // panel de secciones
-  // Secciones plegadas. Se pliegan al tocar su cabecera; así una lista larga
-  // se lee de un vistazo y solo abres el grupo que te interesa ahora.
-  const [plegadas, setPlegadas] = useState({});
-
-  useEffect(() => { cargar(); }, []);
-  async function cargar() {
-    try {
-      const [t, s] = await Promise.all([api.listRandomTasks(), api.listTaskSections()]);
-      setTasks(t); setSecciones(s);
-    } catch { setTasks([]); setSecciones([]); }
+  // Secciones ABIERTAS. Por defecto todas plegadas: se ve solo su nombre y
+  // cuántas tareas tienen; al tocar la cabecera se abre o se cierra, y el
+  // móvil lo recuerda para la próxima vez.
+  const [abiertas, setAbiertas] = useState(leerAbiertas);
+  function alternarSeccion(clave) {
+    setAbiertas((p) => {
+      const n = { ...p, [clave]: !p[clave] };
+      try { localStorage.setItem(CLAVE_ABIERTAS, JSON.stringify(n)); } catch { /* sin almacenamiento */ }
+      return n;
+    });
   }
 
   async function crear() {
@@ -49,11 +71,25 @@ export default function RandomTasks() {
   async function alternar(t) { await api.updateRandomTask(t.id, { done: !t.done }); cargar(); }
   async function borrar(id) { await api.deleteRandomTask(id); cargar(); }
   async function mover(id, valor) {
+    if (valor.startsWith("k:")) {                    // es algo por leer/ver/aprender
+      const kind = valor.slice(2);
+      await api.taskToKnowledge(id, kind);
+      refrescar("tasks", "knowledge");
+      avisar(`Llevada a ${ESTRELLA_DE[kind]} ✓`, "ok");
+      return;
+    }
+    if (valor === "skill") {                         // es una habilidad a desarrollar
+      await api.taskToSkill(id);
+      refrescar("tasks", "skills");
+      avisar("Llevada a Habilidades ✓ Ya puedes registrar práctica y subir de nivel.", "ok");
+      return;
+    }
     await api.updateRandomTask(id, valor ? { section_id: parseInt(valor) } : { clear_section: true });
     cargar();
   }
 
-  if (tasks === null) return (<><SectionHeader kicker="Hacer · Pendientes" title="Tareas" /><Loading /></>);
+  const gate = gateT || gateS;
+  if (gate) return (<><SectionHeader kicker="Hacer · Pendientes" title="Tareas" />{gate}</>);
 
   // Cada sección con sus tareas, y al final las que no tienen sección
   const grupos = [
@@ -97,13 +133,14 @@ export default function RandomTasks() {
         <Empty text="Sin tareas pendientes. Apunta lo que tengas en la cabeza y déjala libre." />
       ) : (
         grupos.map((g) => {
-          const clave = g.id ?? "sin";
-          const abierta = !plegadas[clave];
+          const clave = String(g.id ?? "sin");
+          // Si solo hay un grupo, no tiene sentido esconderlo
+          const abierta = grupos.length === 1 || !!abiertas[clave];
           const pendientes = g.tareas.filter((t) => !t.done).length;
           return (
           <div key={clave} style={{ marginBottom: abierta ? 22 : 12 }}>
             {/* Cabecera pulsable: la sección contiene y esconde sus tareas */}
-            <button onClick={() => setPlegadas((p) => ({ ...p, [g.id ?? "sin"]: !abierta }))}
+            <button onClick={() => alternarSeccion(clave)}
               aria-expanded={abierta}
               style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 9, width: "100%",
                 background: "none", border: "none", padding: "2px 0", cursor: "pointer", textAlign: "left" }}>
@@ -146,9 +183,13 @@ export default function RandomTasks() {
                   </span>
                   {/* Clasificar en cualquier momento, también tareas antiguas */}
                   <select value={t.section_id || ""} onChange={(e) => mover(t.id, e.target.value)}
-                    aria-label="Sección de la tarea" style={{ ...selectStyle, padding: "5px 7px", fontSize: 11.5 }}>
+                    aria-label="Sección de la tarea, o llevarla a otra estrella"
+                    style={{ ...selectStyle, padding: "5px 7px", fontSize: 11.5, maxWidth: 118 }}>
                     <option value="">— sin sección —</option>
                     {secciones.map((s) => (<option key={s.id} value={s.id}>{s.name}</option>))}
+                    <optgroup label="Llevar a otra estrella">
+                      {DESTINOS.map(([v, l]) => (<option key={v} value={v}>{l}</option>))}
+                    </optgroup>
                   </select>
                   <button onClick={() => borrar(t.id)} aria-label="Borrar tarea"
                     style={{ background: "none", border: "none", color: C.sepia, cursor: "pointer", padding: 4 }}>

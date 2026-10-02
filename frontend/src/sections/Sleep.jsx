@@ -6,19 +6,16 @@
  * ultimos 7 dias con datos.
  */
 import React, { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { api, ymd } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY } from "../lib/theme";
 import { SectionHeader, Field, SolidBtn, Loading } from "../components/ui";
 
 export default function Sleep() {
-  const [logs, setLogs] = useState(null);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const { data: logs, gate, reload: load } = useApi("sleep", api.listSleep);
+  const [date, setDate] = useState(ymd());
   const [hours, setHours] = useState("");
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try { setLogs(await api.listSleep()); } catch { setLogs([]); }
-  }
   async function save() {
     const h = parseFloat(hours);
     if (isNaN(h)) return;
@@ -26,7 +23,7 @@ export default function Sleep() {
     setHours(""); load();
   }
 
-  if (logs === null) return (<><SectionHeader kicker="Cuerpo - Descanso" title="Sueno" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Cuerpo · Descanso" title="Sueño" />{gate}</>);
 
   // Ultimos 7 registros, en orden cronologico para la grafica
   const recent = [...logs].sort((a, b) => a.date.localeCompare(b.date)).slice(-7);
@@ -35,7 +32,7 @@ export default function Sleep() {
 
   return (
     <div>
-      <SectionHeader kicker="Cuerpo - Descanso" title="Sueno" />
+      <SectionHeader kicker="Cuerpo · Descanso" title="Sueño" />
 
       <div style={{ background: C.paper, borderRadius: 10, padding: 18, border: `1px solid ${C.paperEdge}`, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 18 }}>

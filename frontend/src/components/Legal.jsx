@@ -25,9 +25,12 @@ export default function Legal() {
     setError("");
     try {
       await api.deleteAccount();
-      // Se cierra la sesión: ya no queda nada que mostrar
+      // Se borra también todo lo guardado en este móvil y se cierra la sesión
+      const { purgarCache } = await import("../lib/queryClient");
+      await purgarCache();
+      try { localStorage.removeItem("tc:uid"); localStorage.removeItem("tc:tareas:abiertas"); } catch { /* nada */ }
       const { supabase } = await import("../lib/supabase");
-      await supabase.auth.signOut();
+      try { await supabase.auth.signOut({ scope: "local" }); } catch { /* la cuenta ya no existe */ }
       window.location.reload();
     } catch (e) {
       setError("No se pudo completar el borrado. Inténtalo de nuevo.");

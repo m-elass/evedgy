@@ -17,6 +17,7 @@
 import React, { useEffect, useState } from "react";
 import { NotebookPen, Trash2, PersonStanding, ChevronLeft, ChevronRight, RefreshCw, X, Crown, Search, Check } from "lucide-react";
 import { api } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_BODY, FONT_DISPLAY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader, Collapsible, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
 import { HelpDot } from "../components/Help";
@@ -30,13 +31,10 @@ const DOW = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "D
 let MUSCLE_CATALOG = null;
 
 export default function Exercises() {
-  const [items, setItems] = useState(null);        // biblioteca
-  const [routine, setRoutine] = useState(null);    // semana resuelta
   const [weekOffset, setWeekOffset] = useState(0);
   const [permanent, setPermanent] = useState(false); // el interruptor
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
-  const [known, setKnown] = useState([]);      // catálogo que la app reconoce
   const [preview, setPreview] = useState(null); // músculos detectados al escribir
   const [rebuilding, setRebuilding] = useState(false);
 
@@ -45,9 +43,12 @@ export default function Exercises() {
   const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6);
   const wsISO = ymd(weekStart);
 
-  useEffect(() => { loadLib(); }, []);
-  // El catálogo de ejercicios reconocidos (para sugerir mientras escribes)
-  useEffect(() => { api.knownCatalog().then((r) => setKnown(r.exercises || [])).catch(() => {}); }, []);
+  // Biblioteca, semana resuelta y catálogo reconocido: guardados en el móvil
+  const { data: items, gate: gateLib } = useApi("exercises", api.listExercises);
+  const { data: routine, gate: gateRut } = useApi("routine", api.routineWeek, { params: [wsISO] });
+  const { data: catalogo } = useApi("catalog", api.knownCatalog, { staleTime: 24 * 3600 * 1000 });
+  const known = catalogo?.exercises || [];
+  const refrescar = useRefrescar();
   // Vista previa de los músculos: se consulta al dejar de teclear
   useEffect(() => {
     if (!adding || name.trim().length < 3) { setPreview(null); return; }
@@ -56,9 +57,8 @@ export default function Exercises() {
     }, 350);
     return () => clearTimeout(t);
   }, [name, adding]);
-  useEffect(() => { loadRoutine(); }, [weekOffset]);
-  async function loadLib() { try { setItems(await api.listExercises()); } catch { setItems([]); } }
-  async function loadRoutine() { try { setRoutine(await api.routineWeek(wsISO)); } catch { setRoutine({ days: [] }); } }
+  const loadLib = () => refrescar("exercises", "training", "muscles");
+  const loadRoutine = () => refrescar("routine", "training");
 
   async function create() {
     if (!name.trim()) return;
@@ -83,8 +83,8 @@ export default function Exercises() {
     try { await api.reanalyzeAll(); await loadLib(); } finally { setRebuilding(false); }
   }
 
-  if (items === null || routine === null)
-    return (<><SectionHeader kicker="Cuerpo · Taller" title="Ejercicios" /><Loading /></>);
+  if (gateLib || gateRut)
+    return (<><SectionHeader kicker="Cuerpo · Taller" title="Ejercicios" />{gateLib || gateRut}</>);
 
   const label = weekOffset === 0 ? "Esta semana" : weekOffset === -1 ? "Semana pasada"
     : weekOffset === 1 ? "Semana que viene"

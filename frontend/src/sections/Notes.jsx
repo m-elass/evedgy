@@ -10,20 +10,16 @@
 import React, { useEffect, useState } from "react";
 import { Quote, Trash2 } from "lucide-react";
 import { api } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY } from "../lib/theme";
 import { SectionHeader, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
 
 export default function Notes() {
-  const [notes, setNotes] = useState(null);   // null = aún cargando
+  const { data: notes, gate, reload: load } = useApi("notes", api.listNotes);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
 
   // Cargar al entrar
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try { setNotes(await api.listNotes()); }
-    catch { setNotes([]); }
-  }
 
   async function save() {
     if (!draft.trim()) return;
@@ -37,7 +33,7 @@ export default function Notes() {
     load();
   }
 
-  if (notes === null) return (<><SectionHeader kicker="Mente · Fugaz" title="Destellos" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Mente · Fugaz" title="Destellos" />{gate}</>);
 
   return (
     <div>

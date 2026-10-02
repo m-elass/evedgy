@@ -1,0 +1,128 @@
+/* ═══ CARTA DIARIA — pergamino, tinta y lacre ═══ */
+
+.carta-sombra { filter: drop-shadow(0 18px 28px rgba(0, 0, 0, .5)) drop-shadow(0 2px 3px rgba(0, 0, 0, .35)); }
+
+.pergamino {
+  position: relative;
+  color: #33210f;
+  padding: 30px 26px 34px;
+  background-color: #EEDDB6;
+  background-image:
+    var(--ruido-papel, none),
+    radial-gradient(ellipse 60% 40% at 18% 12%, rgba(255, 252, 238, .55), transparent 70%),
+    radial-gradient(ellipse 70% 50% at 88% 92%, rgba(122, 78, 28, .22), transparent 70%),
+    radial-gradient(ellipse 45% 35% at 6% 88%, rgba(122, 78, 28, .16), transparent 70%),
+    radial-gradient(circle at 74% 26%, rgba(150, 100, 40, .08) 0 22px, transparent 23px),
+    radial-gradient(circle at 30% 64%, rgba(150, 100, 40, .06) 0 30px, transparent 31px),
+    linear-gradient(176deg, #F5E9CC 0%, #EEDDB6 45%, #E3CB97 100%);
+  box-shadow: inset 0 0 60px rgba(122, 78, 28, .38), inset 0 0 14px rgba(122, 78, 28, .3);
+}
+
+.pergamino .fecha {
+  font-family: 'IM Fell English', Georgia, serif;
+  font-style: italic; font-size: 15.5px; text-align: right; color: #5b3d1e;
+  margin-bottom: 18px; letter-spacing: .01em;
+}
+.pergamino .saludo, .pergamino .despedida {
+  font-family: 'Pinyon Script', 'IM Fell English', cursive;
+  font-size: 30px; line-height: 1.25; color: #2b1a0b;
+  background: transparent; border: none; outline: none; width: 100%; padding: 2px 0;
+}
+.pergamino .despedida { text-align: right; font-size: 27px; }
+.pergamino .saludo::placeholder, .pergamino .despedida::placeholder,
+.pergamino .cuerpo::placeholder { color: rgba(80, 52, 22, .38); }
+
+.pergamino .cuerpo {
+  display: block; width: 100%; box-sizing: border-box; resize: none; overflow: hidden;
+  font-family: 'IM Fell English', Georgia, serif; font-size: 18.5px; line-height: 32px;
+  color: #2e1d0c; background: transparent; border: none; outline: none; padding: 4px 0 0;
+  min-height: 320px;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 31px,
+    rgba(122, 78, 28, .17) 31px, rgba(122, 78, 28, .17) 32px);
+  background-attachment: local;
+}
+
+.pergamino .texto {
+  font-family: 'IM Fell English', Georgia, serif; font-size: 18.5px; line-height: 1.75;
+  color: #2e1d0c; white-space: pre-wrap; word-wrap: break-word;
+}
+.pergamino .texto p { margin: 0 0 .7em; }
+
+/* Letra capital iluminada */
+.capitular {
+  float: left; width: 62px; height: 62px; margin: 6px 12px 2px 0; position: relative;
+  border-radius: 3px;
+  background: radial-gradient(circle at 30% 25%, #2B4C86, #13284B 70%);
+  box-shadow: 0 0 0 2px #C9962F, 0 0 0 4px #F1DFAF, 0 0 0 5px #8E6418, 0 3px 8px rgba(40, 20, 0, .35);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.capitular span {
+  font-family: 'UnifrakturMaguntia', 'IM Fell English', serif; font-size: 46px; line-height: 1;
+  background: linear-gradient(160deg, #FFF2C2 0%, #E8B84B 45%, #A6741E 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .45)); position: relative; z-index: 1;
+}
+.capitular svg { position: absolute; inset: 0; }
+
+/* Lacre */
+.sello { display: block; }
+.sello.estampar { animation: estampar .9s cubic-bezier(.2, .9, .25, 1.15) both; }
+@keyframes estampar {
+  0% { transform: scale(2.1) rotate(-18deg); opacity: 0; }
+  55% { transform: scale(.9) rotate(3deg); opacity: 1; }
+  75% { transform: scale(1.05) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+.onda-lacre { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(255, 220, 180, .55);
+  animation: onda 1s .45s ease-out both; pointer-events: none; }
+@keyframes onda { from { transform: scale(.6); opacity: .9; } to { transform: scale(1.9); opacity: 0; } }
+
+.cinta-cartas {
+  display: flex; align-items: stretch; justify-content: space-around; gap: 6px;
+  padding: 12px 10px; margin-bottom: 18px; border-radius: 14px; position: relative; overflow: hidden;
+  background: linear-gradient(135deg, #5A1414, #7E1E1C 45%, #5A1414);
+  border: 1px solid rgba(232, 184, 75, .35);
+  box-shadow: inset 0 1px 0 rgba(255, 220, 180, .18), 0 10px 24px rgba(0, 0, 0, .35);
+}
+.cinta-cartas .cifra { text-align: center; flex: 1; }
+.cinta-cartas .num { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 700; line-height: 1;
+  background: linear-gradient(160deg, #FFF2C2, #E8B84B 55%, #B98526);
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cinta-cartas .lab { font-family: 'Inter', sans-serif; font-size: 10px; letter-spacing: .14em;
+  text-transform: uppercase; color: rgba(255, 226, 190, .75); margin-top: 4px; }
+
+.carta-mini {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
+  padding: 12px 14px; margin-bottom: 9px; border-radius: 10px; border: 1px solid rgba(214, 180, 120, .45);
+  background: linear-gradient(135deg, #F1E3C2, #E4CFA2); color: #3a2614;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .28);
+  transition: transform .2s;
+}
+.carta-mini:active { transform: scale(.985); }
+
+.pluma-btn {
+  display: inline-flex; align-items: center; gap: 9px; cursor: pointer;
+  padding: 13px 22px; border-radius: 999px; border: 1px solid rgba(255, 220, 160, .5);
+  background: radial-gradient(circle at 30% 25%, #B83A33, #7E1E1C 70%);
+  color: #FBE9C8; font-family: 'IM Fell English', Georgia, serif; font-size: 18px; font-style: italic;
+  box-shadow: 0 8px 20px rgba(80, 10, 10, .45), inset 0 1px 0 rgba(255, 210, 180, .35);
+}
+.pluma-btn:disabled { opacity: .6; }
+
+.carta-espera { animation: respirar 3.2s ease-in-out infinite; }
+@keyframes respirar { 0%, 100% { transform: none; } 50% { transform: translateY(-2px); } }
+
+.libro-cartas { position: fixed; inset: 0; z-index: 80; overflow-y: auto; background: #1a120a; padding: 18px 14px 80px; }
+.libro-cartas .hoja { max-width: 620px; margin: 0 auto 22px; }
+
+@media print {
+  body * { visibility: hidden !important; }
+  .libro-cartas, .libro-cartas * { visibility: visible !important; }
+  .libro-cartas { position: absolute; inset: 0; background: #fff; padding: 0; overflow: visible; }
+  .libro-cartas .no-imprimir { display: none !important; }
+  .libro-cartas .hoja { break-inside: avoid; page-break-after: always; filter: none; margin: 0 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sello.estampar, .onda-lacre, .carta-espera { animation: none !important; }
+}

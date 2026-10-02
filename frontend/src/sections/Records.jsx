@@ -8,17 +8,15 @@
 import React, { useEffect, useState } from "react";
 import { Award } from "lucide-react";
 import { api } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader, Loading, Empty } from "../components/ui";
 
 export default function Records() {
-  const [records, setRecords] = useState(null);
+  const { data, gate } = useApi("records", api.records);
+  const records = data?.records;
 
-  useEffect(() => {
-    api.records().then((r) => setRecords(r.records)).catch(() => setRecords([]));
-  }, []);
-
-  if (records === null) return (<><SectionHeader kicker="Cuerpo · Cimas" title="Récords" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Cuerpo · Cimas" title="Récords" />{gate}</>);
 
   return (
     <div>

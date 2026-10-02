@@ -8,32 +8,30 @@
  */
 import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader, Field, SolidBtn, Loading, Empty } from "../components/ui";
 import { HelpDot } from "../components/Help";
 import RankBadge from "../components/RankBadge";
 
 export default function Ranks() {
-  const [data, setData] = useState(null);
-  const [profile, setProfile] = useState(null);
+  const { data, gate } = useApi("ranks", api.allRanks);
+  const { data: profile } = useApi("profile", api.getProfile);
+  const refrescar = useRefrescar();
+  const load = () => refrescar("ranks", "profile");
   const [editing, setEditing] = useState(false);
   const [bw, setBw] = useState("");
   const [sex, setSex] = useState("m");
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try {
-      const p = await api.getProfile();
-      setProfile(p); setBw(p.bodyweight ? String(p.bodyweight) : ""); setSex(p.sex || "m");
-    } catch { setProfile({}); }
-    try { setData(await api.allRanks()); } catch { setData({ ranks: [], needs_bodyweight: true }); }
-  }
+  useEffect(() => {
+    if (profile) { setBw(profile.bodyweight ? String(profile.bodyweight) : ""); setSex(profile.sex || "m"); }
+  }, [profile]);
   async function saveProfile() {
     await api.updateProfile({ bodyweight: parseFloat(bw) || 0, sex });
     setEditing(false); load();
   }
 
-  if (data === null) return (<><SectionHeader kicker="Cuerpo · Rangos" title="Tus rangos" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Cuerpo · Rangos" title="Tus rangos" />{gate}</>);
 
   return (
     <div>

@@ -13,6 +13,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, TrendingUp, ArrowLeft, Calendar, NotebookPen, Sparkles, Timer, Pencil, Trash2, History, Trophy } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { api } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader, Collapsible, Field, SolidBtn, Loading, Empty } from "../components/ui";
 import { HelpDot } from "../components/Help";
@@ -26,10 +27,6 @@ function fmtShort(iso) { const d = new Date(iso + "T00:00:00"); return d.toLocal
 const DOW = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
 export default function Training() {
-  const [exercises, setExercises] = useState(null);  // biblioteca (para datos completos)
-  const [routine, setRoutine] = useState(null);      // la semana resuelta (7 días)
-  const [sessions, setSessions] = useState([]);
-  const [prevSessions, setPrevSessions] = useState([]);
   const [progressOf, setProgressOf] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
 
@@ -37,25 +34,20 @@ export default function Training() {
   weekStart.setDate(weekStart.getDate() + weekOffset * 7);
   const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6);
 
-  useEffect(() => { api.listExercises().then(setExercises).catch(() => setExercises([])); }, []);
-  useEffect(() => { load(); }, [weekOffset]);
-  async function load() {
-    // La semana anterior se carga también: sirve de referencia al entrenar
-    const prevStart = new Date(weekStart); prevStart.setDate(prevStart.getDate() - 7);
-    const prevEnd = new Date(weekStart); prevEnd.setDate(prevEnd.getDate() - 1);
-    try {
-      const [r, s, p] = await Promise.all([
-        api.routineWeek(ymd(weekStart)),
-        api.listSessions({ start: ymd(weekStart), end: ymd(weekEnd) }),
-        api.listSessions({ start: ymd(prevStart), end: ymd(prevEnd) }),
-      ]);
-      setRoutine(r); setSessions(s); setPrevSessions(p);
-    } catch { setRoutine({ days: [] }); setSessions([]); setPrevSessions([]); }
-  }
+  // Biblioteca de ejercicios y la semana entera (rutina, sesiones de esta
+  // semana y de la anterior, y sugerencias por ejercicio) en UNA petición.
+  const { data: exercises, gate: gateEx } = useApi("exercises", api.listExercises);
+  const { data: semana, gate: gateSem } = useApi("training", api.trainingWeek, { params: [ymd(weekStart)] });
+  const refrescar = useRefrescar();
+  const load = () => refrescar("training", "records", "ranks", "muscles", "progress", "today");
 
   if (progressOf) return <Progress ex={progressOf} onBack={() => setProgressOf(null)} />;
-  if (exercises === null || routine === null)
-    return (<><SectionHeader kicker="Cuerpo · Sesión" title="Entrenamiento" /><Loading /></>);
+  const gate = gateEx || gateSem;
+  if (gate) return (<><SectionHeader kicker="Cuerpo · Sesión" title="Entrenamiento" />{gate}</>);
+  const routine = semana.routine;
+  const sessions = semana.sessions;
+  const prevSessions = semana.prev_sessions;
+  const insights = semana.insights || {};
 
   const label = weekOffset === 0 ? "Esta semana"
     : weekOffset === -1 ? "Semana pasada"
@@ -121,7 +113,7 @@ export default function Training() {
                     // que hacía que se vieran las series de otra semana.
                     <ExerciseRow key={`${p.id}-${iso}-${sess ? sess.id : "nueva"}`}
                       ex={ex} sess={sess} date={iso} orden={hechas.length > 1 ? n + 1 : 0}
-                      anterior={anterior}
+                      anterior={anterior} insight={insights[String(p.id)]}
                       readOnly={!canLog} onSaved={load} onProgress={() => setProgressOf(ex)} />
                   ));
                 })
@@ -134,7 +126,7 @@ export default function Training() {
   );
 }
 
-function ExerciseRow({ ex, sess, date, orden = 0, anterior = [], readOnly, onSaved, onProgress }) {
+function ExerciseRow({ ex, sess, date, orden = 0, anterior = [], insight, readOnly, onSaved, onProgress }) {
   // Las series guardadas, en su orden. Si la sesión trae 5 series, se ven 5.
   const desdeSesion = () => (sess
     ? [...sess.sets]
@@ -151,27 +143,22 @@ function ExerciseRow({ ex, sess, date, orden = 0, anterior = [], readOnly, onSav
     setSets(desdeSesion());
     setFeelings(sess ? sess.feelings : "");
   }, [sess ? sess.id : null, date]);
-  const [tip, setTip] = useState(null);
   const [guardando, setGuardando] = useState(false);   // para mostrar "Guardando…"
   // El cerrojo de verdad: useRef cambia EN EL ACTO. Con useState, tres toques
   // en el mismo instante leen todos el valor viejo (false) antes de que React
   // repinte, y se crean tres sesiones. Con ref, el segundo toque ya ve true.
   const enCurso = useRef(false);
   const [editando, setEditando] = useState(false);
-  const [mejor, setMejor] = useState(null);            // mejor serie histórica
-  const [deload, setDeload] = useState(null);
+  // Mejor serie, sugerencia de hoy y aviso de descarga: llegan ya calculados
+  // con la semana (antes eran 3 peticiones por ejercicio).
+  const mejor = insight?.best || null;
+  const tip = insight?.next || null;
+  const deload = insight?.deload || null;
   const [celebrate, setCelebrate] = useState(null);
 
   const canSuggest = !sess && !readOnly && !editando;
   const editable = (!sess || editando) && !readOnly;   // ¿se pueden tocar los campos?
 
-  // Tu mejor serie de siempre en este ejercicio (por 1RM estimado)
-  useEffect(() => { api.bestSet(ex.id).then(setMejor).catch(() => setMejor(null)); }, [ex.id, sess]);
-  useEffect(() => {
-    if (!canSuggest) return;
-    api.nextSet(ex.id).then(setTip).catch(() => setTip(null));
-    api.deload(ex.id).then(setDeload).catch(() => setDeload(null));
-  }, [ex.id, canSuggest]);
 
   function setField(i, field, val) {
     setSets((prev) => prev.map((s, j) => (j === i ? { ...s, [field]: val } : s)));
@@ -373,10 +360,8 @@ function ExerciseRow({ ex, sess, date, orden = 0, anterior = [], readOnly, onSav
 
 function Progress({ ex, onBack }) {
   const [metric, setMetric] = useState("max");
-  const [data, setData] = useState(null);
-
-  useEffect(() => { api.exerciseProgress(ex.id).then(setData).catch(() => setData({ points: [] })); }, [ex.id]);
-  if (!data) return <Loading />;
+  const { data, gate } = useApi("progress", api.exerciseProgress, { params: [ex.id] });
+  if (gate) return gate;
 
   const chart = data.points.map((p) => ({ fecha: fmtShort(p.date), valor: p[metric] }));
   const unit = metric === "volume" ? "kg·reps" : "kg";

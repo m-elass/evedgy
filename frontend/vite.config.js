@@ -5,12 +5,18 @@ import { VitePWA } from 'vite-plugin-pwa'
 // Configuracion de Vite + PWA.
 // El plugin PWA genera el service worker (lo que permite instalar la app y que
 // arranque rapido). Usa nuestro manifest e iconos de la carpeta public.
+// Versión visible en Ajustes: el commit que Vercel está construyendo (o la
+// fecha, si se construye en local). Sirve para saber qué versión ejecuta el móvil.
+const VERSION = (process.env.VERCEL_GIT_COMMIT_SHA || "").slice(0, 7)
+  || new Date().toISOString().slice(0, 16).replace("T", " ");
+
 export default defineConfig({
+  define: { __VERSION__: JSON.stringify(VERSION) },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',      // actualiza sola cuando publicas una version nueva
-      includeAssets: ['app-icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
+      includeAssets: ['app-icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'push-sw.js'],
       manifest: {
         name: 'Tu cuaderno',
         short_name: 'Cuaderno',
@@ -29,6 +35,8 @@ export default defineConfig({
             icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
           { name: 'Nuevo destello', short_name: 'Destello', url: '/?ir=notes',
             icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
+          { name: 'Escribir la carta', short_name: 'Carta', url: '/?ir=dailyletter',
+            icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
         ],
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
@@ -41,6 +49,10 @@ export default defineConfig({
         // Las llamadas a la API (datos) NO se cachean: siempre datos frescos.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallbackDenylist: [/^\/api/],
+        // Los avisos push (carta diaria) se gestionan en este archivo aparte
+        importScripts: ['push-sw.js'],
+        // Al publicar una versión nueva, el móvil la usa en la siguiente apertura
+        cleanupOutdatedCaches: true,
       },
     }),
   ],

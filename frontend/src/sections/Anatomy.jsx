@@ -8,6 +8,7 @@
  */
 import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD } from "../lib/theme";
 import { SectionHeader, Loading, Empty } from "../components/ui";
 import { HelpDot } from "../components/Help";
@@ -20,13 +21,9 @@ const NAMES = { pecho: "Pecho", hombros: "Hombros", biceps: "Bíceps", triceps: 
   aductores: "Aductores", abductores: "Abductores", cuello: "Cuello" };
 
 export default function Anatomy() {
-  const [data, setData] = useState(null);
+  const { data, gate } = useApi("muscles", api.muscleWeek);
 
-  useEffect(() => {
-    api.muscleWeek().then(setData).catch(() => setData({ has_data: false }));
-  }, []);
-
-  if (data === null) return (<><SectionHeader kicker="Cuerpo · Tu semana" title="Anatomía" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Cuerpo · Tu semana" title="Anatomía" />{gate}</>);
 
   return (
     <div>

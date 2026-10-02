@@ -6,11 +6,12 @@
  */
 import React, { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
-import { api } from "../lib/api";
+import { api, ymd } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD } from "../lib/theme";
 import { SectionHeader, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => ymd();   // fecha LOCAL (toISOString daba la de Londres)
 
 const PROMPTS = [
   { key: "did", label: "Qué hice", ph: "Lo que ocurrió, lo que logré y lo que no." },
@@ -20,22 +21,18 @@ const PROMPTS = [
 ];
 
 export default function Reviews() {
-  const [items, setItems] = useState(null);
+  const { data: items, gate, reload: load } = useApi("reviews", api.listReviews);
   const [writing, setWriting] = useState(false);
   const [period, setPeriod] = useState("semanal");
   const [form, setForm] = useState({ did: "", learned: "", release: "", seed: "" });
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try { setItems(await api.listReviews()); } catch { setItems([]); }
-  }
   async function save() {
     await api.createReview({ period, date: todayStr(), ...form });
     setForm({ did: "", learned: "", release: "", seed: "" }); setWriting(false); load();
   }
   async function remove(id) { await api.deleteReview(id); load(); }
 
-  if (items === null) return (<><SectionHeader kicker="Vida · Ritual" title="Revisión" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Vida · Ritual" title="Revisión" />{gate}</>);
 
   return (
     <div>

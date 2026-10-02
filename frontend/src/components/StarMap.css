@@ -1,0 +1,181 @@
+/* ═══ EL MAR DE ESTRELLAS — calcado de la imagen de referencia ═══
+ * Solo afecta al mapa (todas las clases empiezan por «cel-»). La paleta:
+ * azul noche muy hondo con nubes violeta e índigo; hilos y estrellas principales
+ * en oro ámbar y blanco cálido; perlas en blanco frío, cian, lavanda y oro; los
+ * cuerpos de las figuras, cristal violeta translúcido; los velos, gasa apenas visible. */
+
+/* la noche: el azul hondo de la referencia, solo en el mapa */
+.cel-noche { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 78% 62% at 50% 46%, rgba(8, 13, 40, .92) 0%, rgba(6, 10, 32, .96) 56%, rgba(3, 6, 22, .98) 100%); }
+
+/* las nubes de la nebulosa: una textura suave, pintada una sola vez y estirada sobre todo el cielo */
+.cel-nebulosa { position: absolute; left: 0; top: 0; pointer-events: none; background-size: 100% 100%;
+  background-repeat: no-repeat; opacity: .9; }
+
+.cel-lejos > svg { display: block; animation: cel-flota 120s ease-in-out infinite alternate; }
+@keyframes cel-flota { from { transform: translate(-10px, -6px); } to { transform: translate(12px, 8px); } }
+
+/* nubes quietas: se pintan una sola vez con el cielo (animarlas costaba fotogramas y apenas se notaba) */
+.cel-neb { position: absolute; border-radius: 50%; pointer-events: none; }
+
+.cel-polvo, .cel-meridianos { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.cel-polvo path { fill: none; }
+
+/* ── el cuerpo de seda de cada figura ── */
+.cel-fantasma { position: absolute; pointer-events: none; opacity: .88;
+  transition: opacity 1.2s ease; animation: cel-nace 2.8s ease backwards; }
+.cel-fantasma > svg { display: block; overflow: visible; animation: cel-niebla 13s ease-in-out infinite; }
+.cel-fantasma.viva { opacity: 1; }
+.cel-fantasma.despierta { opacity: 1; transition-duration: .45s; }
+@keyframes cel-nace { from { opacity: 0; } }
+@keyframes cel-niebla { 0%, 100% { opacity: .82; } 50% { opacity: 1; } }
+.cel-fantasma .cel-borde { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── cada figura en su lienzo ── */
+.cel-figura { position: absolute; pointer-events: none; opacity: .93;
+  transition: opacity .8s ease; animation: cel-nace 1.8s ease backwards; }
+.cel-figura > svg { display: block; overflow: visible; }
+.cel-figura.viva, .cel-figura.despierta { opacity: 1; }
+.cel-figura path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.cel-hilo path { transition: stroke-opacity .6s ease, stroke-width .6s ease; }
+
+/* hilos de luz: halo (cel-hh), hilo (cel-l), segunda hebra (cel-l2) y destellos (cel-ch) */
+.cel-hilo.oro .cel-hh { stroke: #F2AE55; stroke-width: 3; stroke-opacity: .09; }
+.cel-hilo.oro .cel-l { stroke: #FFD49A; stroke-width: .95; stroke-opacity: .92; }
+.cel-hilo.oro .cel-l2 { stroke: #FFE9CC; stroke-width: .4; stroke-opacity: .45; }
+.cel-hilo.oro .cel-ch { stroke: #FFF3E2; stroke-width: 1.8; stroke-opacity: .95; stroke-dasharray: .01 7 .01 4 .01 13 .01 5; }
+
+.cel-hilo.trazo .cel-hh { stroke: #EDBB7E; stroke-width: 2.4; stroke-opacity: .06; }
+.cel-hilo.trazo .cel-l { stroke: #F6D3A8; stroke-width: .72; stroke-opacity: .72; }
+.cel-hilo.trazo .cel-ch { stroke: #FFEEDA; stroke-width: 1.5; stroke-opacity: .8; stroke-dasharray: .01 9 .01 5 .01 15 .01 7; }
+
+.cel-hilo.fino .cel-hh { stroke: currentColor; stroke-width: 2.2; stroke-opacity: .08; }
+.cel-hilo.fino .cel-l { stroke: currentColor; stroke-width: .55; stroke-opacity: .55; }
+.cel-hilo.fino .cel-ch { stroke: #F0EEFF; stroke-width: 1.25; stroke-opacity: .62; stroke-dasharray: .01 12 .01 7 .01 18; }
+
+.cel-hilo.seda .cel-l { stroke: currentColor; stroke-width: .45; stroke-opacity: .3; }
+
+.cel-hilo.punteado .cel-ch { stroke: currentColor; stroke-width: 1.4; stroke-opacity: .6; stroke-dasharray: .01 6; }
+
+/* un hilo tenue (la relación que cruza el cielo de la luna): fino, sin halo ni segunda hebra */
+.cel-hilo.tenue .cel-hh, .cel-hilo.tenue .cel-l2 { display: none; }
+.cel-hilo.tenue .cel-l { stroke-width: .6; stroke-opacity: .5; }
+.cel-hilo.tenue .cel-ch { stroke-width: 1.4; stroke-opacity: .7; stroke-dasharray: .01 11 .01 7 .01 17; }
+
+/* trazos de detalle sin destellos */
+.cel-solo.marcas { stroke: currentColor; stroke-width: .7; stroke-opacity: .45; }
+.cel-solo.barbas { stroke: #E8E2FF; stroke-width: .42; stroke-opacity: .3; }
+.cel-solo.pluma { stroke: currentColor; stroke-width: .55; stroke-opacity: .34; }
+.cel-solo.vena { stroke: #E6D8F4; stroke-width: .5; stroke-opacity: .36; }
+.cel-solo.petalo { stroke: #F5D9A0; stroke-width: .7; stroke-opacity: .55; }
+
+/* encendidos al pasar por una estrella o al tocarla */
+.cel-hilo.on .cel-l { stroke-opacity: 1; }
+.cel-hilo.on .cel-l2 { stroke-opacity: .85; }
+.cel-hilo.on .cel-hh { stroke-opacity: .34; stroke-width: 4.4; }
+.cel-hilo.on .cel-ch { stroke-opacity: 1; }
+.cel-figura.viva .cel-hilo.seda .cel-l, .cel-figura.despierta .cel-hilo.seda .cel-l { stroke-opacity: .48; }
+.cel-figura.viva .cel-hilo.trazo .cel-l, .cel-figura.despierta .cel-hilo.trazo .cel-l { stroke-opacity: .9; }
+.cel-figura.despierta .cel-hilo.oro .cel-hh { stroke-opacity: .3; }
+
+/* perlas */
+.cel-perla .cel-cruz { stroke: #F4F6FF; stroke-width: .4; stroke-opacity: .55; }
+
+/* de Hoy a cada constelación: meridianos dorados (el color va en un degradado a lo largo del viaje) */
+.cel-meridianos path { fill: none; stroke-linecap: round; }
+.cel-meridiano .cel-glow { stroke-width: 3; stroke-opacity: .1; }
+.cel-meridiano .cel-l { stroke-width: .8; stroke-opacity: .6; }
+.cel-meridiano .cel-l2 { stroke-width: .4; stroke-opacity: .4; stroke-dasharray: 2 5; }
+.cel-meridiano .cel-lon { stroke: #FFE3A0; stroke-width: .9; stroke-opacity: 0; transition: stroke-opacity .6s ease; }
+.cel-meridiano.on .cel-lon { stroke-opacity: .85; }
+.cel-meridiano.on .cel-l { stroke-opacity: 1; }
+.cel-meridiano.on .cel-glow { stroke-opacity: .3; stroke-width: 4.2; }
+
+/* ── la rosa astral de Hoy ── */
+.cel-rosa { position: absolute; transform: translate(-50%, -50%); pointer-events: none;
+  animation: cel-nace 2s ease .4s backwards; }
+.cel-rosa > svg { display: block; overflow: visible; animation: cel-gira 300s linear infinite; }
+@keyframes cel-gira { to { transform: rotate(360deg); } }
+.cel-rosa path { fill: none; stroke: #F6D592; }
+.cel-rosa .r1 { stroke-width: .7; stroke-opacity: .5; }
+.cel-rosa .r2 { stroke-width: .5; stroke-opacity: .3; }
+.cel-rosa .r3 { stroke-width: .6; stroke-opacity: .38; }
+.cel-rosa .r4 { stroke-width: .5; stroke-opacity: .2; fill: rgba(255, 217, 138, .03); }
+.cel-rosa .r5 { fill: #FFE3A6; fill-opacity: .75; stroke: none; }
+.cel-rosa .r6 { fill: #FFF3D6; opacity: .85; }
+
+/* ── ambiente ── */
+.cel-tw { position: absolute; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%);
+  animation: cel-titila ease-in-out infinite; will-change: opacity; }
+@keyframes cel-titila { 0%, 100% { opacity: .15; } 50% { opacity: .9; } }
+.cel-deriva { position: absolute; width: 1.8px; height: 1.8px; border-radius: 50%; pointer-events: none;
+  background: #E3F2FF; box-shadow: 0 0 6px 1px rgba(170, 220, 255, .6); opacity: .55;
+  animation: cel-deriva linear infinite alternate; }
+@keyframes cel-deriva { from { transform: translate(0, 0); } to { transform: translate(var(--dx), var(--dy)); } }
+
+/* nombres de las constelaciones */
+.cel-zona { position: absolute; transform: translate(-50%, -50%); pointer-events: none; white-space: nowrap;
+  font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: calc(13px * var(--cel-kl, 1)); letter-spacing: .6em;
+  text-indent: .6em; text-transform: uppercase; color: rgba(214, 222, 255, .42);
+  text-shadow: 0 0 10px rgba(4, 8, 26, .9); animation: cel-nace 2.4s ease 1s backwards; }
+
+/* ── las estrellas que se pueden tocar ── */
+.cel-astro { position: absolute; width: calc(48px * var(--cel-k, 1)); height: calc(48px * var(--cel-k, 1));
+  padding: 0; margin: 0; border: none; background: none;
+  cursor: pointer; transform: translate(-50%, -50%); -webkit-tap-highlight-color: transparent;
+  animation: cel-asoma .9s cubic-bezier(.2, .9, .3, 1.15) backwards; }
+@keyframes cel-asoma { from { opacity: 0; transform: translate(-50%, -50%) scale(.3); } }
+.cel-astro:focus-visible { outline: none; }
+.cel-astro.centro { width: calc(64px * var(--cel-k, 1)); height: calc(64px * var(--cel-k, 1)); }
+
+.cel-halo { position: absolute; left: 50%; top: 50%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 248, 234, .72) 0%, rgba(255, 212, 150, .32) 14%,
+    rgba(250, 192, 116, .11) 36%, rgba(245, 185, 110, 0) 66%);
+  transform: translate(-50%, -50%); animation: cel-halo 6.5s ease-in-out infinite;
+  transition: transform .6s ease; will-change: transform, opacity; }
+@keyframes cel-halo { 0%, 100% { opacity: .8; } 50% { opacity: 1; } }
+.cel-astro.centro .cel-halo { background: radial-gradient(circle, rgba(255, 248, 234, .75) 0%, rgba(255, 212, 150, .34) 14%,
+  rgba(250, 190, 116, .13) 34%, rgba(245, 185, 110, 0) 66%); }
+/* una estrella-sección con luz violeta (la punta de la flecha, como en la referencia) */
+.cel-astro.violeta .cel-halo { background: radial-gradient(circle, rgba(250, 246, 255, .78) 0%, rgba(206, 184, 255, .36) 14%,
+  rgba(160, 130, 245, .13) 36%, rgba(150, 120, 240, 0) 66%); }
+.cel-astro.violeta .cel-luz { filter: hue-rotate(228deg) saturate(.7) brightness(1.08); }
+
+.cel-luz { position: absolute; left: 50%; top: 50%; overflow: visible; pointer-events: none;
+  transform: translate(-50%, -50%); animation: cel-respira 5.2s ease-in-out infinite;
+  transition: filter .6s ease; will-change: transform; }
+@keyframes cel-respira { 0%, 100% { transform: translate(-50%, -50%) scale(.97); } 50% { transform: translate(-50%, -50%) scale(1.04); } }
+.cel-luz .rayos { opacity: .9; }
+.cel-astro.principal .cel-luz .rayos { opacity: .78; }
+
+/* al pasar por encima (o al pulsar en el móvil): más luz y un halo mayor */
+.cel-astro.on .cel-halo, .cel-astro:hover .cel-halo { transform: translate(-50%, -50%) scale(1.35); }
+.cel-astro.on .cel-luz .rayos, .cel-astro:hover .cel-luz .rayos { opacity: 1; }
+.cel-astro.on .cel-luz, .cel-astro:hover .cel-luz, .cel-astro.despierta .cel-luz { filter: drop-shadow(0 0 7px rgba(255, 232, 175, .85)); }
+.cel-astro.violeta.on .cel-luz, .cel-astro.violeta:hover .cel-luz, .cel-astro.violeta.despierta .cel-luz {
+  filter: hue-rotate(228deg) saturate(.7) brightness(1.08) drop-shadow(0 0 7px rgba(214, 196, 255, .85)); }
+.cel-astro.viva .cel-halo { transform: translate(-50%, -50%) scale(1.12); }
+.cel-astro.despierta .cel-halo { transform: translate(-50%, -50%) scale(1.25); }
+
+/* los nombres, como en una carta celeste antigua */
+.cel-lab { position: absolute; white-space: nowrap; pointer-events: none;
+  font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: calc(14px * var(--cel-kl, 1)); letter-spacing: .035em;
+  color: rgba(238, 241, 255, .93); text-shadow: 0 0 3px rgba(3, 6, 22, .95), 0 0 12px rgba(3, 6, 22, .85);
+  transition: color .5s ease; }
+.cel-lab.abajo { left: 50%; top: calc(50% + var(--d)); transform: translateX(-50%); }
+.cel-lab.arriba { left: 50%; bottom: calc(50% + var(--d)); transform: translateX(-50%); }
+.cel-lab.izq { right: calc(50% + var(--d)); top: 50%; transform: translateY(-50%); }
+.cel-lab.der { left: calc(50% + var(--d)); top: 50%; transform: translateY(-50%); }
+.cel-lab.abajo-der { left: calc(50% + var(--d) * .6); top: calc(50% + var(--d) * .42); }
+.cel-lab.abajo-izq { right: calc(50% + var(--d) * .6); top: calc(50% + var(--d) * .42); }
+.cel-lab.arriba-der { left: calc(50% + var(--d) * .6); bottom: calc(50% + var(--d) * .42); }
+.cel-lab.arriba-izq { right: calc(50% + var(--d) * .6); bottom: calc(50% + var(--d) * .42); }
+.cel-astro.nucleo .cel-lab { font-size: calc(16px * var(--cel-kl, 1)); color: #FFEBC2; }
+.cel-astro.centro .cel-lab { font-size: calc(21px * var(--cel-kl, 1)); font-weight: 700; letter-spacing: .1em; color: #FFE6A6; }
+.cel-astro.on .cel-lab, .cel-astro:hover .cel-lab { color: #FFFFFF; }
+
+/* «reducir movimiento»: el cielo queda quieto */
+@media (prefers-reduced-motion: reduce) {
+  .cel-lejos > svg, .cel-fantasma, .cel-fantasma > svg, .cel-figura, .cel-rosa, .cel-rosa > svg,
+  .cel-tw, .cel-deriva, .cel-zona, .cel-astro, .cel-halo, .cel-luz { animation: none !important; }
+}

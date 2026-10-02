@@ -8,17 +8,14 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { api } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY } from "../lib/theme";
 import { SectionHeader, AddBtn, SolidBtn, Loading, Empty } from "../components/ui";
 
 export default function Write() {
-  const [docs, setDocs] = useState(null);
+  const { data: docs, gate, reload: load } = useApi("documents", api.listDocuments);
   const [openId, setOpenId] = useState(null);
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try { setDocs(await api.listDocuments()); } catch { setDocs([]); }
-  }
   async function createNew(type) {
     const d = await api.createDocument({ title: type === "verso" ? "Nuevo verso" : "Nueva prosa", type, body: "" });
     await load();
@@ -26,7 +23,7 @@ export default function Write() {
   }
 
   if (openId !== null) return <Editor id={openId} onBack={() => { setOpenId(null); load(); }} />;
-  if (docs === null) return (<><SectionHeader kicker="Mente - En serio" title="Escritura" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Mente - En serio" title="Escritura" />{gate}</>);
 
   return (
     <div>

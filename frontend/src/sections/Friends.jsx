@@ -11,24 +11,22 @@
 import React, { useEffect, useState } from "react";
 import { UserPlus, Check, X, Users, Trophy, Shield as ShieldIcon, Eye, EyeOff } from "lucide-react";
 import { api } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader, Field, SolidBtn, Loading, Empty } from "../components/ui";
 import RankBadge from "../components/RankBadge";
 
 export default function Friends() {
-  const [friends, setFriends] = useState(null);
-  const [profile, setProfile] = useState(null);
+  const { data: friends, gate: gateF } = useApi("friends", api.listFriends);
+  const { data: profile, gate: gateP } = useApi("profile", api.getProfile);
+  const refrescar = useRefrescar();
+  const load = () => refrescar("friends", "profile");
   const [alias, setAlias] = useState("");
   const [adding, setAdding] = useState("");
   const [msg, setMsg] = useState("");
   const [openId, setOpenId] = useState(null);
   const [ranks, setRanks] = useState({});
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try { setProfile(await api.getProfile()); } catch { setProfile({}); }
-    try { setFriends(await api.listFriends()); } catch { setFriends([]); }
-  }
 
   async function saveAlias() {
     await api.updateProfile({ display_name: alias.trim() });
@@ -60,7 +58,7 @@ export default function Friends() {
     }
   }
 
-  if (friends === null || profile === null) return (<><SectionHeader kicker="Vida · Juntos" title="Amigos" /><Loading /></>);
+  if (gateF || gateP) return (<><SectionHeader kicker="Vida · Juntos" title="Amigos" />{gateF || gateP}</>);
 
   // Necesita alias para usar la función
   if (!profile.display_name) {

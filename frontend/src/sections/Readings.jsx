@@ -8,6 +8,7 @@
 import React, { useEffect, useState } from "react";
 import { Trash2, BookText, Quote, Lightbulb, MessageCircleWarning } from "lucide-react";
 import { api } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD } from "../lib/theme";
 import { SectionHeader, Collapsible, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
 
@@ -15,28 +16,24 @@ const STATUSES = [["por_leer", "Por leer"], ["leyendo", "Leyendo"], ["leido", "L
 const KINDS = [["frase", "Frase", Quote], ["idea", "Idea", Lightbulb], ["desacuerdo", "Desacuerdo", MessageCircleWarning]];
 
 export default function Readings() {
-  const [items, setItems] = useState(null);
+  const { data: items, gate, reload: load } = useApi("readings", api.listReadings);
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try { setItems(await api.listReadings()); } catch { setItems([]); }
-  }
   async function create() {
     if (!title.trim()) return;
     await api.createReading({ title: title.trim(), author: author.trim(), status: "leyendo" });
     setTitle(""); setAuthor(""); setAdding(false); load();
   }
 
-  if (items === null) return (<><SectionHeader kicker="Mente · Cosecha" title="Lecturas" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Saber · Cosecha" title="Lecturas" />{gate}</>);
 
   const totalHarvests = items.reduce((a, r) => a + r.harvests.length, 0);
 
   return (
     <div>
-      <SectionHeader kicker="Mente · Cosecha" title="Lecturas" />
+      <SectionHeader kicker="Saber · Cosecha" title="Lecturas" />
       <p style={{ fontFamily: FONT_BODY, fontSize: 13.5, color: C.sepia, lineHeight: 1.6, marginBottom: 18 }}>
         No guardas el libro, guardas lo que te llevaste de él. {totalHarvests > 0 && `${totalHarvests} ideas cosechadas hasta ahora.`}
       </p>

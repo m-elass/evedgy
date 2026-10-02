@@ -7,22 +7,19 @@
  */
 import React, { useEffect, useState } from "react";
 import { Trash2, Scale, CheckCircle2, XCircle, CircleDot } from "lucide-react";
-import { api } from "../lib/api";
+import { api, ymd } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD } from "../lib/theme";
 import { SectionHeader, Collapsible, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => ymd();   // fecha LOCAL (toISOString daba la de Londres)
 function fmt(iso) { return iso ? new Date(iso + "T00:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : ""; }
 
 export default function Decisions() {
-  const [items, setItems] = useState(null);
+  const { data: items, gate, reload: load } = useApi("decisions", api.listDecisions);
   const [writing, setWriting] = useState(false);
   const [form, setForm] = useState({ title: "", context: "", reasoning: "", expected: "", decided_option: "", review_date: "" });
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try { setItems(await api.listDecisions()); } catch { setItems([]); }
-  }
   async function create() {
     if (!form.title.trim()) return;
     await api.createDecision({ ...form, review_date: form.review_date || null });
@@ -30,7 +27,7 @@ export default function Decisions() {
     setWriting(false); load();
   }
 
-  if (items === null) return (<><SectionHeader kicker="Vida · Criterio" title="Decisiones" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Vida · Criterio" title="Decisiones" />{gate}</>);
 
   // Decisiones cuya fecha de revisión ya llegó y aún sin revisar: las destacamos.
   const pendingReview = items.filter((d) => !d.reviewed_at && d.review_date && d.review_date <= todayStr());

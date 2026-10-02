@@ -180,12 +180,18 @@ export const HELP = {
     ],
   },
   skills: {
-    title: "Aprendizajes",
-    lead: "Las habilidades que estás desarrollando y en qué punto están. Hace visible un progreso que normalmente no se ve, porque aprender no da una cifra como el peso levantado.",
+    title: "Habilidades · el Sistema",
+    lead: "Cada habilidad que quieres dominar tiene su camino de rangos, de Novato a Maestro, y el Sistema te propone cada día misiones concretas para avanzar de verdad, no solo para sumar minutos.",
     points: [
-      "Cada aprendizaje guarda su nivel y tus notas sobre cómo avanzas.",
-      "Ver el avance escrito protege de la sensación falsa de estancamiento.",
+      "Los rangos miden maestría real (las etapas de Dreyfus y las horas de práctica de referencia): E Novato, D Aprendiz (≈20 h), C Competente (≈100 h), B Hábil (≈400 h), A Experto (≈1.500 h) y S Maestro (≈5.000 h). Los niveles, del 1 al 100, marcan tu avance dentro de cada rango.",
+      "Cada día el Sistema te asigna hasta 3 misiones diarias, para las habilidades que más lo necesitan y adaptadas a tu rango, y cada lunes una misión semanal por habilidad. Cada una dice qué hacer y cuándo está hecha. Puedes cambiar una al día por habilidad.",
+      "Experiencia: cada minuto de práctica es 1 XP; cada misión diaria suma +15 XP, cada semanal +60 y cada hito personal lo que le pongas (máximo 300).",
+      "Al llegar al 90 % de un rango se abre la prueba de ascenso: criterios reales que tienes que cumplir, con tu evidencia. Sin superarla no subes de rango aunque acumules horas: el nivel se queda sellado y la XP espera en reserva. Mientras está abierta, algunas misiones son ensayos de la prueba.",
+      "Al crear una habilidad, el Sistema reconoce su tipo (música, idioma, programación, deporte, arte, escritura, estudio, oratoria, ajedrez, cocina…) y usa su plan de misiones. Si el servidor tiene la IA configurada, diseña además uno a medida para esa habilidad concreta.",
+      "Si ya dominas algo, elige tu punto de partida (rango y horas previas) al crearla o en sus ajustes. Con 0 minutos al día, la habilidad queda en pausa: sin misiones diarias, pero puedes pedir la de hoy cuando quieras.",
+      "La racha del Sistema cuenta los días seguidos con todas las misiones diarias cumplidas. Las que pides a mano son un extra: no la rompen.",
     ],
+    note: "Las horas no lo son todo: importa cómo practicas. Por eso cada misión es práctica deliberada (un objetivo concreto, al borde de tu nivel, con una forma de comprobarlo) y cada rango hay que demostrarlo. El rango solo vale si es verdad.",
   },
   decisions: {
     title: "Decisiones",
@@ -407,6 +413,78 @@ export const HELP = {
     points: [
       "Cuenta entrenos, hábitos cumplidos, sueño y récords, y lo dice en una frase en lugar de en una tabla.",
       "Sirve para lo que los números sueltos no consiguen: darte una impresión de conjunto en cinco segundos.",
+    ],
+  },
+  dailyletter: {
+    title: "Carta diaria",
+    lead: "Cada noche, una carta en pergamino para una persona lejana: le cuentas tu día y la sellas con lacre. Algún día se las entregarás todas.",
+    points: [
+      "Hay una carta por día: escribir otra vez el mismo día la reescribe. De madrugada (antes de las 4:00) aún cuenta como el día anterior.",
+      "La racha cuenta las noches seguidas con carta; si hoy aún no has escrito, sigue viva hasta que acabe el día.",
+      "Mientras escribes, el borrador se guarda en este móvil para no perderlo; al sellar, viaja a tu cuaderno y el borrador se borra.",
+      "En «El legajo» están todas por meses. «Encuadernar» las junta en orden para imprimirlas o guardarlas en PDF.",
+      "El aviso de la noche se activa en Ajustes → Aviso de la carta diaria: solo llega si ese día aún no has escrito.",
+    ],
+    note: "Estas cartas nunca se guardan en la memoria del móvil: solo el borrador sin sellar, y se borra al cerrar sesión.",
+  },
+  daily_letter: {
+    title: "Carta diaria",
+    lead: "Cada noche, una carta en pergamino para una persona lejana: le cuentas tu día y la sellas con lacre.",
+    points: [
+      "Una carta por día, racha de noches seguidas y un legajo para encuadernarlas.",
+      "El aviso de la noche se activa en Ajustes → Aviso de la carta diaria.",
+    ],
+  },
+  toread: {
+    title: "Por leer",
+    lead: "Los libros y artículos que quieres leer, cada uno con su porqué. Cuando empiezas un libro, pasa a Lecturas con su porqué como primera cosecha.",
+    points: [
+      "El «por qué me interesa» es opcional, pero es lo que dentro de un año te dirá si aún te importa.",
+      "Prioridad: algún día, pronto o imprescindible (✦).",
+    ],
+  },
+  towatch: {
+    title: "Por ver",
+    lead: "Películas, series, documentales y vídeos que quieres ver, con su porqué y su prioridad.",
+    points: [
+      "Empezar → en curso; Terminado → te pregunta qué te llevas (opcional).",
+      "Las tareas sueltas tipo «ver Interstellar» se traen aquí desde Tareas, con el selector de cada tarea.",
+    ],
+  },
+  tolearn: {
+    title: "Por aprender",
+    lead: "Cursos y podcasts que quieres empezar, con su porqué.",
+    points: ["Cuando algo se convierte en práctica constante, llévalo a Habilidades y empieza a subir de nivel."],
+  },
+  knowledge: {
+    title: "La constelación del Saber",
+    lead: "Todo lo que quieres conocer —leer, ver, escuchar, estudiar— en un solo cielo, separado de las tareas.",
+    points: [
+      "Por leer, Por ver y Por aprender guardan lo pendiente; Lecturas, lo que estás leyendo con sus cosechas; Frases, lo que te ha marcado.",
+      "Cada cosa pasa de pendiente a en curso y a terminada, y puede llevar lo que te llevaste de ella.",
+    ],
+  },
+  quotes: {
+    title: "Frases",
+    lead: "Las frases que te han marcado. Cada día aparece una en Hoy, y si quieres, en el widget del móvil.",
+    points: [
+      "Las favoritas (★) aparecen el triple de a menudo.",
+      "El ojo decide si una frase puede salir en el widget: las que solo quieras para ti, déjalas con el ojo tachado.",
+      "En Hoy, «Otra» te enseña la siguiente sin cambiar la del día.",
+    ],
+  },
+  quotes_today: {
+    title: "La frase de hoy",
+    lead: "Una de tus frases guardadas, distinta cada día.",
+    points: ["Se elige sola cada día; las favoritas, más a menudo. Se añaden en la estrella Frases."],
+  },
+  offline: {
+    title: "Lo guardado en tu móvil",
+    lead: "La app guarda en el móvil lo último que vio, para abrirse al instante aunque el servidor esté despertando o no haya red.",
+    points: [
+      "Si arriba aparece «No se pudo actualizar», lo que ves es lo último guardado: tus datos siguen a salvo en el servidor.",
+      "Lo que escribes nunca se queda «pendiente» en el móvil: o se guarda en el servidor, o la app te avisa de que no se pudo.",
+      "Cartas, escritos, revisiones, decisiones, valores y amigos nunca se guardan en el móvil.",
     ],
   },
   flashback: {

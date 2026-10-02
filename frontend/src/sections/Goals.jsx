@@ -7,19 +7,16 @@
 import React, { useEffect, useState } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { api } from "../lib/api";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY } from "../lib/theme";
 import { SectionHeader, AddBtn, Field, SolidBtn, Loading, Empty } from "../components/ui";
 
 export default function Goals() {
-  const [items, setItems] = useState(null);
+  const { data: items, gate, reload: load } = useApi("goals", api.listGoals);
   const [adding, setAdding] = useState(false);
   const [desc, setDesc] = useState("");
   const [target, setTarget] = useState("");
 
-  useEffect(() => { load(); }, []);
-  async function load() {
-    try { setItems(await api.listGoals()); } catch { setItems([]); }
-  }
   async function create() {
     if (!desc.trim()) return;
     await api.createGoal({ description: desc.trim(), target_date: target || null });
@@ -31,7 +28,7 @@ export default function Goals() {
   }
   async function remove(id) { await api.deleteGoal(id); load(); }
 
-  if (items === null) return (<><SectionHeader kicker="Futuro - Vision" title="Objetivos" /><Loading /></>);
+  if (gate) return (<><SectionHeader kicker="Futuro - Vision" title="Objetivos" />{gate}</>);
 
   return (
     <div>

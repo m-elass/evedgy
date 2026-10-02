@@ -9,11 +9,18 @@
  *   patron es mas claro que apilar 12 iconos.
  */
 import React, { useEffect, useState, useRef } from "react";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import {
   Home, Dumbbell, BookMarked, Moon, CheckSquare, Lightbulb, PenLine, BookOpen,
   Target, Compass, RefreshCw, GraduationCap, Award, Mail, Scale, BookText, Grid3x3, Shield, Flame, Users, PersonStanding, Sparkles, LogOut, Palette, Settings as Cog, Menu, X,
+  Feather, Library, Film, Quote, Swords,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
+import { queryClient, persistOptions } from "./lib/queryClient";
+import { SessionProvider, useSession } from "./lib/session";
+import { despertar } from "./lib/api";
+import Toaster from "./components/Toaster";
+import EstadoRed from "./components/EstadoRed";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD } from "./lib/theme";
 import { ThemeProvider } from "./lib/ThemeContext";
 import Auth from "./components/Auth";
@@ -39,6 +46,9 @@ import Friends from "./sections/Friends";
 import Letters from "./sections/Letters";
 import Decisions from "./sections/Decisions";
 import Readings from "./sections/Readings";
+import DailyLetter from "./sections/DailyLetter";
+import { PorLeer, PorVer, PorAprender } from "./sections/Knowledge";
+import Quotes from "./sections/Quotes";
 import ThemeSettings from "./sections/ThemeSettings";
 import SettingsHub from "./sections/SettingsHub";
 import StarMap from "./components/StarMap";
@@ -49,20 +59,25 @@ const SECTIONS = {
   today:     { label: "Hoy",         icon: Home,         comp: Today },
   training:  { label: "Entreno",     icon: Dumbbell,     comp: Training,   zone: "Cuerpo" },
   exercises: { label: "Ejercicios",  icon: BookMarked,   comp: Exercises,  zone: "Cuerpo" },
-  sleep:     { label: "Sueno",       icon: Moon,         comp: Sleep,      zone: "Cuerpo" },
-  records:   { label: "Records",     icon: Award,        comp: Records,    zone: "Cuerpo" },
+  sleep:     { label: "Sueño",       icon: Moon,         comp: Sleep,      zone: "Cuerpo" },
+  records:   { label: "Récords",     icon: Award,        comp: Records,    zone: "Cuerpo" },
   ranks:     { label: "Rangos",      icon: Shield,       comp: Ranks,      zone: "Cuerpo" },
   physique:  { label: "Meta",        icon: Flame,        comp: Physique,   zone: "Cuerpo" },
   anatomy:   { label: "Anatomía",    icon: PersonStanding, comp: Anatomy,  zone: "Cuerpo" },
-  daily:     { label: "Habitos",     icon: CheckSquare,  comp: DailyTasks, zone: "Hacer" },
+  daily:     { label: "Hábitos",     icon: CheckSquare,  comp: DailyTasks, zone: "Hacer" },
   todo:      { label: "Tareas",      icon: Lightbulb,    comp: RandomTasks, zone: "Hacer" },
   notes:     { label: "Destellos",   icon: PenLine,      comp: Notes,      zone: "Mente" },
   write:     { label: "Escritura",   icon: BookOpen,     comp: Write,      zone: "Mente" },
-  readings:  { label: "Lecturas",    icon: BookText,     comp: Readings,   zone: "Mente" },
+  dailyletter: { label: "Carta diaria", icon: Feather,   comp: DailyLetter, zone: "Mente" },
+  toread:    { label: "Por leer",    icon: Library,      comp: PorLeer,    zone: "Saber" },
+  towatch:   { label: "Por ver",     icon: Film,         comp: PorVer,     zone: "Saber" },
+  tolearn:   { label: "Por aprender", icon: GraduationCap, comp: PorAprender, zone: "Saber" },
+  readings:  { label: "Lecturas",    icon: BookText,     comp: Readings,   zone: "Saber" },
+  quotes:    { label: "Frases",      icon: Quote,        comp: Quotes,     zone: "Saber" },
   goals:     { label: "Objetivos",   icon: Target,       comp: Goals,      zone: "Vida" },
   values:    { label: "Valores",     icon: Compass,      comp: Values,     zone: "Vida" },
-  reviews:   { label: "Revision",    icon: RefreshCw,    comp: Reviews,    zone: "Vida" },
-  skills:    { label: "Aprendizajes", icon: GraduationCap, comp: Skills,   zone: "Vida" },
+  reviews:   { label: "Revisión",    icon: RefreshCw,    comp: Reviews,    zone: "Vida" },
+  skills:    { label: "Habilidades", icon: Swords,       comp: Skills,     zone: "Vida" },
   decisions: { label: "Decisiones",  icon: Scale,        comp: Decisions,  zone: "Vida" },
   letters:   { label: "Cartas",      icon: Mail,         comp: Letters,    zone: "Vida" },
   friends:   { label: "Amigos",      icon: Users,        comp: Friends,    zone: "Vida" },
@@ -76,7 +91,8 @@ const COORDS = {
   training: [340, 410], exercises: [225, 345], sleep: [235, 485], records: [425, 315],
   ranks: [480, 470], physique: [335, 555], anatomy: [175, 425],
   daily: [950, 400], todo: [1055, 330],
-  notes: [330, 895], write: [235, 975], readings: [430, 985],
+  notes: [330, 895], write: [235, 975], dailyletter: [450, 985],
+  toread: [600, 205], towatch: [745, 165], tolearn: [805, 290], readings: [665, 330], quotes: [530, 280],
   goals: [975, 845], values: [1075, 780], reviews: [1105, 915], skills: [930, 975],
   decisions: [1015, 1040], letters: [870, 760], friends: [1145, 720],
   settings: [650, 1085], theme: [770, 1130],
@@ -91,11 +107,12 @@ const STARS = [
 ];
 const EDGES = [
   ["today", "training", 1], ["today", "daily", 1], ["today", "notes", 1],
-  ["today", "goals", 1], ["today", "settings", 1],
+  ["today", "goals", 1], ["today", "settings", 1], ["today", "readings", 1],
   ["training", "exercises"], ["training", "records"], ["training", "sleep"],
   ["training", "ranks"], ["ranks", "physique"], ["exercises", "anatomy"],
   ["daily", "todo"],
-  ["notes", "write"], ["notes", "readings"],
+  ["notes", "write"], ["notes", "dailyletter"],
+  ["readings", "toread"], ["toread", "towatch"], ["towatch", "tolearn"], ["readings", "tolearn"], ["toread", "quotes"],
   ["goals", "values"], ["values", "reviews"], ["goals", "skills"],
   ["skills", "decisions"], ["goals", "letters"], ["values", "friends"],
   ["settings", "theme"],
@@ -103,20 +120,22 @@ const EDGES = [
 const SKY_ZONES = [
   { name: "Cuerpo", x: 300, y: 245 }, { name: "Hacer", x: 995, y: 262 },
   { name: "Mente", x: 320, y: 1058 }, { name: "Vida", x: 1005, y: 652 },
+  { name: "Saber", x: 668, y: 100 },
 ];
 
 
 // Las que van en la barra inferior (lo esencial del dia a dia).
 const BOTTOM = ["today", "training", "daily", "notes"];
-const ZONES = ["Cuerpo", "Hacer", "Mente", "Vida"];
+const ZONES = ["Cuerpo", "Hacer", "Mente", "Saber", "Vida"];
 
 function Shell() {
-  const [session, setSession] = useState(undefined);
+  const session = useSession();
   // Si se abre desde un acceso directo del icono (?ir=training), entramos ahí
   const [view, setView] = useState(() => {
     try {
       const ir = new URLSearchParams(window.location.search).get("ir");
-      return ir && SECTIONS[ir] ? ir : "today";
+      if (ir) window.history.replaceState(null, "", window.location.pathname);
+      return ir && (SECTIONS[ir] || ir === "settings" || ir === "theme") ? ir : "today";
     } catch { return "today"; }
   });
   const [mode, setMode] = useState("section");   // empezamos DENTRO de la estrella de Hoy
@@ -126,11 +145,8 @@ function Shell() {
   const FLOW = Object.keys(SECTIONS);              // el orden de la corriente
   const [menuOpen, setMenuOpen] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => sub.subscription.unsubscribe();
-  }, []);
+  // Nada más abrir, un toque al servidor para que vaya despertando
+  useEffect(() => { despertar(); }, []);
 
   if (session === undefined) return <div style={{ minHeight: "100vh", background: C.ink }} />;
   if (!session) return <Auth />;
@@ -161,7 +177,11 @@ function Shell() {
   }
 
   const Active = view === "theme" ? ThemeSettings : view === "settings" ? SettingsHub : SECTIONS[view].comp;
-  const today = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+  // «Jueves, 1 de octubre»: en español solo va en mayúscula la primera letra
+  const today = (() => {
+    const t = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  })();
 
   return (
     <HelpProvider section={view}>
@@ -183,7 +203,7 @@ function Shell() {
       <header style={{ padding: "22px 20px 16px", borderBottom: "none", display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative", zIndex: 1 }}>
         <div>
           <div style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".22em", textTransform: "uppercase", color: C.sepia }}>Tu cuaderno</div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, color: C.sepiaInk, fontWeight: 600, marginTop: 2, textTransform: "capitalize" }}>{today}</div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, color: C.sepiaInk, fontWeight: 600, marginTop: 2 }}>{today}</div>
         </div>
         <div style={{ display: "flex", gap: 4 }}>
           <button onClick={() => go("theme")} style={iconBtn(view === "theme")} aria-label="Apariencia"><Palette size={18} /></button>
@@ -277,7 +297,13 @@ const navBtn = (active) => ({ display: "flex", flexDirection: "column", alignIte
 export default function App() {
   return (
     <ThemeProvider>
-      <Shell />
+      <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+        <SessionProvider>
+          <Shell />
+          <EstadoRed />
+          <Toaster />
+        </SessionProvider>
+      </PersistQueryClientProvider>
     </ThemeProvider>
   );
 }
