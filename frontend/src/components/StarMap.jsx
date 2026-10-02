@@ -20,7 +20,7 @@
  * unos pocos trazos (cada punto es un remate redondo, no un elemento); al
  * arrastrar solo se mueve con transform y las animaciones son de opacidad y transform.
  */
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   CONSTELACIONES, MAPA, CENTRO, MERIDIANOS, RADIO_ROSA, FIN_MERIDIANO, suave, hebra, arcoEntre, circulo, marcas,
 } from "./constelaciones";
@@ -202,9 +202,10 @@ function polvoEn(n, semilla, ancho, alto, x0 = 0, y0 = 0) {
   return [...grupos.values()];
 }
 
-/* La nebulosa del fondo: nubes suaves de violeta y azul hechas con ruido (siempre el mismo dibujo),
-   pintadas una sola vez en un lienzo pequeño que el navegador estira sobre todo el cielo. */
-function nebulosa(lado = 224) {
+/* La nebulosa del fondo: nubes suaves de violeta y azul hechas con ruido (siempre el mismo dibujo) y,
+   encima, las nubes de color del cielo; todo pintado una sola vez en un lienzo pequeño que el navegador
+   estira sobre el mapa. Al arrastrar, el fondo es una sola imagen: nada de degradados que repintar. */
+function nebulosa(nieblas, lado = 224) {
   try {
     const lienzo = document.createElement("canvas");
     lienzo.width = lienzo.height = lado;
@@ -233,10 +234,19 @@ function nebulosa(lado = 224) {
         img.data[i + 1] = 52 + 18 * (1 - tono);
         img.data[i + 2] = 150 + 60 * (1 - tono * 0.5);
         const e = Math.min(1, Math.min(x, lado - 1 - x, y, lado - 1 - y) / (lado * 0.14));   // se apaga en los bordes
-        img.data[i + 3] = Math.round(255 * 0.2 * k * k * e * e * (3 - 2 * e));
+        img.data[i + 3] = Math.round(255 * 0.9 * 0.2 * k * k * e * e * (3 - 2 * e));
       }
     }
     ctx.putImageData(img, 0, 0);
+    // las nubes de color, cada una apagándose suave hasta su borde
+    const q = lado / MAPA;
+    for (const [x, y, r, c] of nieblas) {
+      const g = ctx.createRadialGradient(x * q, y * q, 0, x * q, y * q, r * q);
+      g.addColorStop(0, c); g.addColorStop(0.28, alfa(c, 0.66)); g.addColorStop(0.52, alfa(c, 0.32));
+      g.addColorStop(0.76, alfa(c, 0.1)); g.addColorStop(1, alfa(c, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect((x - r) * q, (y - r) * q, 2 * r * q, 2 * r * q);
+    }
     return lienzo.toDataURL("image/png");
   } catch {
     return null;
@@ -256,6 +266,80 @@ const GRANO = Array.from({ length: 34 }, (_, i) => ({
    entera en la pantalla; los nombres y la zona que se toca conservan su tamaño real. */
 const escalaPara = (ancho) => Math.min(1, Math.max(0.8, ancho / 490));
 
+/* El cuerpo de cada figura (humo, velos, cristal, fibras, cintas y el resplandor de sus hilos) como
+   un SVG independiente en texto. Se pinta UNA sola vez en un lienzo: así sus desenfoques no se vuelven
+   a calcular cada vez que el mar se arrastra y aparece un trozo nuevo de cielo (eso daba tirones). */
+function svgFantasma(c, caja, lineas, ancho, alto) {
+  const sil = c.silhouette, f = sil.fuerza ?? 1, col = c.color, id = c.id;
+  const cuerpos = sil.shapes || [], rellenos = sil.relleno || [], fibras = sil.fibras || [];
+  const velos = sil.velos || [], vetas = sil.vetas || [], cintas = sil.cintas || [];
+  const cristal = f * (sil.cristal ?? 1), borde = f * (sil.borde ?? 1), bordeVelos = f * (sil.bordeVelos ?? 1);
+  const densidad = f * (sil.densidadVelos ?? 1);
+  const brillo = lineas.filter((l) => (l.estilo === "oro" || l.estilo === "trazo") && !l.tenue);
+  const n = (v) => +v.toFixed(3);
+  const trazos = (lista) => lista.map((d) => `<path d="${d}"/>`).join("");
+  const linea = 'fill="none" stroke-linecap="round" stroke-linejoin="round"';
+  const desenfoque = (nombre, dev, m) =>
+    `<filter id="${nombre}-${id}" x="-${m}%" y="-${m}%" width="${100 + 2 * m}%" height="${100 + 2 * m}%"><feGaussianBlur stdDeviation="${dev}"/></filter>`;
+  const grano = GRANO.map((g) => `<circle cx="${g.x}" cy="${g.y}" r="${g.r}" fill="${g.c}" opacity="${g.o}"/>`).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${ancho}" height="${alto}" viewBox="${caja.x} ${caja.y} ${caja.w} ${caja.h}">`
+    + `<defs>${desenfoque("fa", 18, 40)}${desenfoque("fb", 2.6, 15)}${desenfoque("fs", 1.1, 10)}${desenfoque("fv", sil.veloBlur ?? 1.1, 15)}`
+    + `<pattern id="grano-${id}" width="96" height="96" patternUnits="userSpaceOnUse">${grano}</pattern></defs>`
+    // el humo y el cristal se pintan opacos y la transparencia va al grupo (no se acumulan);
+    // los velos y las cintas de seda, en cambio, se superponen como gasa: donde se cruzan, más luz
+    + `<g filter="url(#fa-${id})" fill="${col.mist}" opacity="${n(0.12 * f)}">${trazos([...cuerpos, ...rellenos])}</g>`
+    + `<g filter="url(#fv-${id})" fill="${col.velo}" fill-opacity="${n(0.075 * densidad)}">${trazos(velos)}</g>`
+    + `<g ${linea} stroke="${col.rim}" stroke-width=".7" opacity="${n(0.2 * bordeVelos)}">${trazos(velos)}</g>`
+    + `<g ${linea} stroke="${col.rim}" stroke-width=".45" opacity="${n(0.13 * f)}">${trazos(vetas)}</g>`
+    + `<g fill="${col.seda}" opacity="${n(0.13 * cristal)}">${trazos(cuerpos)}</g>`
+    + `<g filter="url(#fb-${id})" fill="${col.seda}" opacity="${n(0.17 * f)}">${trazos(rellenos)}</g>`
+    + `<g filter="url(#fs-${id})" ${linea} stroke="${col.seda}" stroke-opacity="${n(0.07 * f)}">`
+    + cintas.map((k) => `<path d="${k.d}" stroke-width="${k.w}"/>`).join("") + "</g>"
+    + `<g filter="url(#fb-${id})" ${linea} stroke="${col.rim}" stroke-width="3" opacity="${n(0.24 * borde)}">${trazos(cuerpos)}</g>`
+    + `<g ${linea} stroke="${col.rim}" stroke-width=".55" opacity="${n(0.32 * borde)}">${trazos(cuerpos)}</g>`
+    + `<g ${linea} stroke="${col.accent}" stroke-width=".5" opacity="${n(0.22 * f)}">${trazos(fibras)}</g>`
+    // el polvo de luz atrapado dentro del cristal
+    + `<g fill="url(#grano-${id})" opacity="${n(0.8 * f)}">${trazos([...cuerpos, ...rellenos])}</g>`
+    // el resplandor cálido de los hilos de oro
+    + `<g filter="url(#fb-${id})" ${linea} stroke="#F4B25E" stroke-width="2.4" opacity=".5">${trazos(brillo.map((l) => l.d))}</g>`
+    + "</svg>";
+}
+
+/* El cuerpo de una figura pintado en su lienzo (a la resolución de la pantalla, sin pasarse de 2×).
+   Si el navegador no pudiera pintar el SVG como imagen, se pone tal cual: se ve igual, solo cuesta más. */
+function Fantasma({ c, caja, lineas, i, escala }) {
+  const lienzo = useRef(null);
+  const [vivo, setVivo] = useState(false);
+  const k = Math.min(window.devicePixelRatio || 1, 2) * escala;
+  const ancho = Math.max(1, Math.round(caja.w * k)), alto = Math.max(1, Math.round(caja.h * k));
+  const texto = useMemo(() => svgFantasma(c, caja, lineas, ancho, alto), [c, caja, lineas, ancho, alto]);
+  useEffect(() => {
+    const el = lienzo.current;
+    if (!el) return undefined;
+    let url = "";
+    const img = new Image();
+    const soltar = () => { if (url) URL.revokeObjectURL(url); url = ""; };
+    img.onload = () => {
+      try { el.getContext("2d")?.drawImage(img, 0, 0, ancho, alto); } catch { setVivo(true); }
+      soltar();
+    };
+    img.onerror = () => { soltar(); setVivo(true); };
+    // uno tras otro (y no todos a la vez) para no frenar la apertura del mar
+    const t = setTimeout(() => {
+      try { url = URL.createObjectURL(new Blob([texto], { type: "image/svg+xml" })); img.src = url; } catch { setVivo(true); }
+    }, 60 + i * 140);
+    return () => { clearTimeout(t); img.onload = null; img.onerror = null; soltar(); };
+  }, [texto, ancho, alto, i]);
+  return (
+    <div className="cel-fantasma" data-c={c.id}
+      style={{ left: c.origin.x + caja.x, top: c.origin.y + caja.y, width: caja.w, height: caja.h,
+        animationDelay: `${0.9 + i * 0.25}s, ${-i * 3.1}s` }}>
+      {vivo ? <div className="cel-fantasma-svg" dangerouslySetInnerHTML={{ __html: texto }} />
+        : <canvas ref={lienzo} width={ancho} height={alto} style={{ width: caja.w, height: caja.h }} aria-hidden="true" />}
+    </div>
+  );
+}
+
 export default function StarMap({ stars, edges, zones, onEnter }) {
   // La posición del mar NO es estado de React: al arrastrar se mueve con
   // transform directamente (una vez por fotograma), sin volver a pintar el cielo.
@@ -264,9 +348,29 @@ export default function StarMap({ stars, edges, zones, onEnter }) {
     y: window.innerHeight / 2 - CENTRO.y * escala.current });
   const mapRef = useRef(null);
   const farRef = useRef(null);
+  const wrapRef = useRef(null);
   const drag = useRef(null);
   const diving = useRef(false);
   const frame = useRef(0);
+  const quieto = useRef(false);
+
+  /* Mientras se arrastra, el cielo se queda quieto: se pausan los pulsos de luz (SMIL) y las
+     animaciones CSS (titileos, halos, respiración). Así el hilo principal solo mueve el mapa y el
+     arrastre va fluido; al soltar, todo sigue donde estaba (la pausa no se nota). */
+  function pausar(si) {
+    if (quieto.current === si) return;
+    quieto.current = si;
+    wrapRef.current?.classList.toggle("cel-arrastrando", si);
+    mapRef.current?.querySelectorAll("svg.cel-vivo").forEach((g) => {
+      try { if (si) g.pauseAnimations(); else g.unpauseAnimations(); } catch { /* sin SMIL: nada que pausar */ }
+    });
+  }
+
+  // Con el mar abierto, el fondo de la app (que queda debajo, tapado) deja de animarse
+  useEffect(() => {
+    document.body.classList.add("cel-en-el-mar");
+    return () => document.body.classList.remove("cel-en-el-mar");
+  }, []);
 
   function aplicar() {
     frame.current = 0;
@@ -286,11 +390,14 @@ export default function StarMap({ stars, edges, zones, onEnter }) {
   }
   function move(e) {
     const d = drag.current; if (!d) return;
-    if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) > 8) d.moved = true;
+    if (!d.moved && Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) > 8) { d.moved = true; pausar(true); }
     pan.current = clamp(d.px + e.clientX - d.sx, d.py + e.clientY - d.sy);
     if (!frame.current) frame.current = requestAnimationFrame(aplicar);
   }
-  function up() { setTimeout(() => { drag.current = null; }, 0); }
+  function up() {
+    setTimeout(() => { drag.current = null; }, 0);
+    if (quieto.current) requestAnimationFrame(() => pausar(false));
+  }
 
   /* Realce: la estrella brilla más, sus trayectorias se encienden y su figura asoma */
   function realzar(a) {
@@ -336,7 +443,6 @@ export default function StarMap({ stars, edges, zones, onEnter }) {
   // Todo el cielo se construye UNA vez: arrastrar ya no lo vuelve a crear
   const cielo = useMemo(() => {
     const { astros, figuras, meridianos, etiquetas } = modelo;
-    const nube = nebulosa();
     const polvo = polvoEn(1150, 3, MAPA, MAPA);
     const brillos = Array.from({ length: 58 }, (_, i) => ({
       x: h(i * 11 + 4) * MAPA, y: h(i * 11 + 9) * MAPA, r: 1.8 + h(i * 13 + 1) * 2.4,
@@ -367,16 +473,18 @@ export default function StarMap({ stars, edges, zones, onEnter }) {
       [1300, 980, 200, "rgba(54,72,176,.06)"], [40, 960, 200, "rgba(60,64,160,.06)"],
       [CENTRO.x, CENTRO.y, 240, "rgba(232,190,110,.045)"],
     ];
+    const nube = nebulosa(nieblas);
     const pulsosMer = meridianos.filter((m) => m.central).map((m, i) => ({ ref: m.id, dur: 11 + (i % 3) * 2.2, begin: 1.2 + i * 1.7 }));
 
     return (
       <>
-        {nube && <div className="cel-nebulosa" style={{ width: MAPA, height: MAPA, backgroundImage: `url(${nube})` }} />}
-        {nieblas.map(([x, y, r, c], i) => (
-          <span key={i} className="cel-neb" style={{ left: x - r, top: y - r,
-            width: r * 2, height: r * 2, background: `radial-gradient(circle closest-side, ${c} 0%, ${alfa(c, 0.66)} 28%, `
-              + `${alfa(c, 0.32)} 52%, ${alfa(c, 0.1)} 76%, transparent 100%)` }} />
-        ))}
+        {/* la nebulosa y las nubes de color: una sola imagen */}
+        {nube ? <div className="cel-nebulosa" style={{ width: MAPA, height: MAPA, backgroundImage: `url(${nube})` }} />
+          : nieblas.map(([x, y, r, c], i) => (
+            <span key={i} className="cel-neb" style={{ left: x - r, top: y - r,
+              width: r * 2, height: r * 2, background: `radial-gradient(circle closest-side, ${c} 0%, ${alfa(c, 0.66)} 28%, `
+                + `${alfa(c, 0.32)} 52%, ${alfa(c, 0.1)} 76%, transparent 100%)` }} />
+          ))}
 
         {/* polvo estelar quieto: unos pocos trazos */}
         <svg className="cel-polvo" width={MAPA} height={MAPA} aria-hidden="true">
@@ -401,56 +509,14 @@ export default function StarMap({ stars, edges, zones, onEnter }) {
 
         {/* el cuerpo de cada figura, como en la referencia: un humo apenas visible, los velos fantasma
             (aletas, alas, hojas, halos) de borde suave, el cristal translúcido con su borde de luz y
-            sus fibras, y el resplandor cálido que rodea los hilos dorados. Todo quieto: se pinta una vez. */}
-        {figuras.map(({ c, caja, lineas }, i) => {
-          const sil = c.silhouette, f = sil.fuerza ?? 1, col = c.color;
-          const cuerpos = sil.shapes || [], rellenos = sil.relleno || [], fibras = sil.fibras || [];
-          const velos = sil.velos || [], vetas = sil.vetas || [], cintas = sil.cintas || [];
-          const cristal = f * (sil.cristal ?? 1), borde = f * (sil.borde ?? 1), bordeVelos = f * (sil.bordeVelos ?? 1);
-          const densidad = f * (sil.densidadVelos ?? 1);
-          const brillo = lineas.filter((l) => (l.estilo === "oro" || l.estilo === "trazo") && !l.tenue);
-          const trazos = (lista, pre) => lista.map((d, j) => <path key={`${pre}${j}`} d={d} />);
-          return (
-            <div key={c.id} className="cel-fantasma" data-c={c.id}
-              style={{ left: c.origin.x + caja.x, top: c.origin.y + caja.y, width: caja.w, height: caja.h,
-                animationDelay: `${0.9 + i * 0.25}s, ${-i * 3.1}s` }}>
-              <svg width={caja.w} height={caja.h} viewBox={`${caja.x} ${caja.y} ${caja.w} ${caja.h}`} aria-hidden="true">
-                <defs>
-                  <filter id={`cel-fa-${c.id}`} x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="18" /></filter>
-                  <filter id={`cel-fb-${c.id}`} x="-15%" y="-15%" width="130%" height="130%"><feGaussianBlur stdDeviation="2.6" /></filter>
-                  <filter id={`cel-fs-${c.id}`} x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.1" /></filter>
-                  <filter id={`cel-fv-${c.id}`} x="-15%" y="-15%" width="130%" height="130%"><feGaussianBlur stdDeviation={sil.veloBlur ?? 1.1} /></filter>
-                </defs>
-                {/* el humo y el cristal se pintan opacos y la transparencia va al grupo (no se acumulan);
-                    los velos y las cintas de seda, en cambio, se superponen como gasa: donde se cruzan, más luz */}
-                <g filter={`url(#cel-fa-${c.id})`} fill={col.mist} opacity={0.12 * f}>{trazos([...cuerpos, ...rellenos], "a")}</g>
-                <g filter={`url(#cel-fv-${c.id})`} fill={col.velo} fillOpacity={0.075 * densidad}>{trazos(velos, "v")}</g>
-                <g className="cel-borde" stroke={col.rim} strokeWidth=".7" opacity={0.2 * bordeVelos}>{trazos(velos, "b")}</g>
-                <g className="cel-borde" stroke={col.rim} strokeWidth=".45" opacity={0.13 * f}>{trazos(vetas, "e")}</g>
-                <g fill={col.seda} opacity={0.13 * cristal}>{trazos(cuerpos, "s")}</g>
-                <g filter={`url(#cel-fb-${c.id})`} fill={col.seda} opacity={0.17 * f}>{trazos(rellenos, "t")}</g>
-                <g filter={`url(#cel-fs-${c.id})`} className="cel-borde" stroke={col.seda} strokeOpacity={0.07 * f}>
-                  {cintas.map((k, j) => <path key={`k${j}`} d={k.d} strokeWidth={k.w} />)}
-                </g>
-                <g filter={`url(#cel-fb-${c.id})`} className="cel-borde" stroke={col.rim} strokeWidth="3" opacity={0.24 * borde}>
-                  {trazos(cuerpos, "r")}
-                </g>
-                <g className="cel-borde" stroke={col.rim} strokeWidth=".55" opacity={0.32 * borde}>{trazos(cuerpos, "c")}</g>
-                <g className="cel-borde" stroke={col.accent} strokeWidth=".5" opacity={0.22 * f}>{trazos(fibras, "f")}</g>
-                {/* el polvo de luz atrapado dentro del cristal */}
-                <g fill="url(#cel-grano)" opacity={0.8 * f}>{trazos([...cuerpos, ...rellenos], "g")}</g>
-                {/* el resplandor cálido de los hilos de oro */}
-                <g filter={`url(#cel-fb-${c.id})`} className="cel-borde" stroke="#F4B25E" strokeWidth="2.4" opacity=".5">
-                  {brillo.map((l) => <path key={l.key} d={l.d} />)}
-                </g>
-              </svg>
-            </div>
-          );
-        })}
+            sus fibras, y el resplandor cálido que rodea los hilos dorados. Pintado una vez en su lienzo. */}
+        {figuras.map(({ c, caja, lineas }, i) => (
+          <Fantasma key={c.id} c={c} caja={caja} lineas={lineas} i={i} escala={escala.current} />
+        ))}
 
         {/* las trayectorias de Hoy al corazón de cada constelación: salen con luz, se adelgazan
             en el viaje y llegan encendidas; al realzarlas se iluminan enteras */}
-        <svg className="cel-meridianos" width={MAPA} height={MAPA} aria-hidden="true">
+        <svg className="cel-meridianos cel-vivo" width={MAPA} height={MAPA} aria-hidden="true">
           {meridianos.map((m) => (
             <g key={m.key} className={`cel-meridiano ${m.central ? "central" : ""}`} data-s={m.s}>
               <defs>
@@ -489,7 +555,7 @@ export default function StarMap({ stars, edges, zones, onEnter }) {
             <div key={c.id} className="cel-figura" data-c={c.id}
               style={{ left: c.origin.x + caja.x, top: c.origin.y + caja.y, width: caja.w, height: caja.h,
                 color: c.color.accent, animationDelay: `${0.35 + ci * 0.22}s` }}>
-              <svg width={caja.w} height={caja.h} viewBox={`${caja.x} ${caja.y} ${caja.w} ${caja.h}`} aria-hidden="true">
+              <svg className="cel-vivo" width={caja.w} height={caja.h} viewBox={`${caja.x} ${caja.y} ${caja.w} ${caja.h}`} aria-hidden="true">
                 {c.orbits.map((o, j) => <Hilo key={`o${j}`} d={o.d} estilo={o.style} />)}
                 {lineas.map((l) => <Hilo key={l.key} id={`cel-t-${l.key}`} d={l.d} d2={l.d2} estilo={l.estilo} s={l.s} tenue={l.tenue} />)}
                 {c.planets.map((p, j) => (
@@ -582,7 +648,7 @@ export default function StarMap({ stars, edges, zones, onEnter }) {
   }, [modelo]);
 
   return (
-    <div className="smap-wrap cel-cielo" onPointerDown={down} onPointerMove={move}
+    <div ref={wrapRef} className="smap-wrap cel-cielo" onPointerDown={down} onPointerMove={move}
       onPointerUp={up} onPointerCancel={up}
       style={{ "--cel-k": 1 / escala.current, "--cel-kl": Math.pow(1 / escala.current, 0.75) }}>
       {/* la noche: hondura sobre el mar de siempre, solo mientras se ve el mapa */}

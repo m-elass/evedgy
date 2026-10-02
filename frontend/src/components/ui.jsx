@@ -7,13 +7,17 @@
  *   AIRE: radios generosos (18px), más espacio entre piezas.
  *   FLUJO: el contenido de los desplegables entra animado; el chevrón vive en
  *     una cápsula que gira con un pequeño rebote.
- *   CARÁCTER: la cabecera de sección lleva un filamento de oro con el diamante
- *     del Iudex; los botones principales son píldoras doradas con brillo.
+ *   CARÁCTER: la cabecera de sección lleva el glifo de su constelación y un
+ *     divisor de agua (sistema ornamental, en components/ornamentos); los
+ *     botones principales son píldoras doradas con brillo.
  */
 import React, { useState } from "react";
 import { ChevronRight, Plus } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { HelpDot, useSectionHelp } from "./Help";
+import {
+  identidad, pedirCeremonia, WaterDivider, AstralSeal, GemaEstado, HydroFrame, WaterDrop, InteractionOrnament,
+} from "./ornamentos";
 
 // La superficie con profundidad que comparten las tarjetas.
 export const SURFACE = {
@@ -41,9 +45,8 @@ export function Collapsible({ title, subtitle, children, defaultOpen = false, ac
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, color: C.sepiaInk, fontWeight: 600 }}>{title}</div>
           {subtitle && <div style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: C.sepia, marginTop: 2 }}>{subtitle}</div>}
         </div>
-        {/* Gema de estado: brilla con su color */}
-        <span style={{ width: 9, height: 9, borderRadius: 9, background: accent, flexShrink: 0,
-          boxShadow: `0 0 10px ${accent}` }} />
+        {/* Gema de estado: un cristal que brilla con su color */}
+        <GemaEstado color={accent} size={15} style={{ filter: `drop-shadow(0 0 4px ${accent})` }} />
       </button>
       {open && <div className="reveal" style={{ padding: "2px 18px 18px" }}>{children}</div>}
     </div>
@@ -78,8 +81,15 @@ export function SectionHeader({ kicker, title, right, help }) {
   // contexto, así que ninguna sección tiene que acordarse de pedirlo.
   const { section } = useSectionHelp();
   const topic = help || section;
+  // Ornamento: el glifo de su constelación y el divisor de agua se «dibujan»
+  // una sola vez al entrar; las secciones núcleo llevan además su sello astral.
+  const id = identidad(section);
+  const [retraso] = useState(() => pedirCeremonia(section));   // null = sin ceremonia
+  const ceremonia = retraso !== null;
+  const sello = id.nucleo && !right && !help;
   return (
-    <div style={{ marginBottom: 26 }}>
+    <div className="orn-cabecera" style={{ marginBottom: 26, "--orn-retraso": (retraso || 0) + "s" }}>
+      {sello && <AstralSeal zona={id.zona} size={66} ceremonia={ceremonia} className="orn-cab-sello" />}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <div>
           <div style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".2em",
@@ -95,21 +105,16 @@ export function SectionHeader({ kicker, title, right, help }) {
         </div>
         {right}
       </div>
-      {/* Filamento de oro con el diamante del Iudex */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
-        <svg width="9" height="12" viewBox="0 0 9 12" style={{ flexShrink: 0 }}>
-          <path d="M4.5 0 L9 6 L4.5 12 L0 6 Z" fill={C.olive} opacity=".9" />
-        </svg>
-        <div style={{ flex: 1, height: 1, maxWidth: 190,
-          background: "linear-gradient(90deg, rgba(232,184,75,.55), rgba(232,184,75,0))" }} />
-      </div>
+      {/* Divisor de agua con el glifo de la constelación (ocupa lo mismo que el antiguo filamento) */}
+      <WaterDivider glifo={id.glifo} zona={id.zona} ancho={250} alto={32} ceremonia={ceremonia}
+        style={{ marginTop: 4, marginBottom: -12 }} />
     </div>
   );
 }
 
 export function AddBtn({ label, onClick }) {
   return (
-    <button onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 9,
+    <button onClick={onClick} data-onda="" style={{ display: "inline-flex", alignItems: "center", gap: 9,
       marginTop: 4, background: C.inkSoft, border: `1px solid ${C.paperEdge}`, color: C.sepiaInk,
       borderRadius: 999, padding: "11px 18px 11px 12px", fontFamily: FONT_BODY, fontSize: 13.5,
       cursor: "pointer", boxShadow: "0 4px 14px rgba(0,0,0,.25)" }}>
@@ -124,11 +129,12 @@ export function AddBtn({ label, onClick }) {
 
 export function SolidBtn({ label, onClick, disabled }) {
   return (
-    <button onClick={onClick} disabled={disabled} style={{ background: GRAD.gold, color: C.cream,
+    <button onClick={onClick} disabled={disabled} data-onda="" style={{ background: GRAD.gold, color: C.cream,
       border: "none", borderRadius: 999, padding: "12px 22px", fontFamily: FONT_BODY, fontSize: 13.5,
       cursor: disabled ? "default" : "pointer", fontWeight: 700, opacity: disabled ? 0.55 : 1,
-      boxShadow: disabled ? "none" : GLOW.gold }}>
+      boxShadow: disabled ? "none" : GLOW.gold, position: "relative" }}>
       {label}
+      {!disabled && <InteractionOrnament tipo="puntas" size={12} />}
     </button>
   );
 }
@@ -147,7 +153,9 @@ export function Empty({ text }) {
   // El vacío como invitación, no como hueco.
   return (
     <div style={{ border: `1.5px dashed ${C.paperEdge}`, borderRadius: 18, padding: "30px 22px",
-      textAlign: "center" }}>
+      textAlign: "center", position: "relative" }}>
+      <HydroFrame variante="minima" radio={18} />
+      <WaterDrop variante="pequena" size={18} className="orn-vacio-gota" />
       <p style={{ margin: 0, fontFamily: FONT_BODY, fontSize: 14, color: C.sepia, lineHeight: 1.6 }}>{text}</p>
     </div>
   );

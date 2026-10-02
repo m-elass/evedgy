@@ -19,6 +19,7 @@ import { avisar } from "../lib/toast";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader } from "../components/ui";
 import { HelpDot } from "../components/Help";
+import { SelloAlado, WaterDivider, HydroFrame, EstrellaAlada, pedirCeremonia } from "../components/ornamentos";
 
 function greeting() {
   const h = new Date().getHours();
@@ -37,6 +38,9 @@ export default function Today({ onNavigate }) {
   });
   const [pend, setPend] = useState({});        // marcas en vuelo (optimistas)
   const [qi, setQi] = useState(0);             // qué frase del día se muestra
+  // ornamento: la ceremonia de entrada se dibuja una sola vez al entrar en Hoy
+  const [retraso] = useState(() => pedirCeremonia("today"));   // null = sin ceremonia
+  const ceremonia = retraso !== null;
   const fijar = useFijarCache();
   const refrescar = useRefrescar();
 
@@ -74,9 +78,12 @@ export default function Today({ onNavigate }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
+      <div className="orn-cabecera" style={{ marginBottom: 20, "--orn-retraso": (retraso || 0) + "s" }}>
+        {/* la Rosa Astral de Hoy: su sello con alas (solo aquí, la pantalla principal) */}
+        <SelloAlado zona="hoy" size={58} ceremonia={ceremonia} className="orn-hoy-sello" />
         <h1 style={{ fontFamily: FONT_DISPLAY, fontSize: 30, color: C.sepiaInk, fontWeight: 600, margin: 0 }}>{greeting()}</h1>
         <p style={{ fontFamily: FONT_BODY, fontSize: 13, color: C.sepia, marginTop: 4 }}>Esto es lo que importa hoy.</p>
+        <WaterDivider glifo="hoy" zona="hoy" ancho={230} alto={28} ceremonia={ceremonia} style={{ marginTop: 2, marginBottom: -18 }} />
       </div>
 
       {/* La frase del día */}
@@ -84,6 +91,7 @@ export default function Today({ onNavigate }) {
         <div className="frase-dia" style={{ position: "relative", marginBottom: 18, padding: "20px 20px 16px",
           borderRadius: 18, background: "linear-gradient(160deg, rgba(232,184,75,.13), rgba(183,156,255,.08) 60%, rgba(30,59,107,.4))",
           border: "1px solid rgba(232,184,75,.28)", overflow: "hidden" }}>
+          <HydroFrame variante="principal" radio={18} />
           <Quote size={34} color="rgba(232,184,75,.22)" style={{ position: "absolute", right: 14, top: 10 }} />
           <div style={{ fontFamily: FONT_BODY, fontSize: 10.5, letterSpacing: ".2em", textTransform: "uppercase",
             fontWeight: 600, marginBottom: 10, background: GRAD.gold, WebkitBackgroundClip: "text",
@@ -178,8 +186,10 @@ export default function Today({ onNavigate }) {
       {/* Hábitos de hoy */}
       <div style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase",
         marginBottom: 10, fontWeight: 600, background: GRAD.gold, WebkitBackgroundClip: "text",
-        backgroundClip: "text", color: "transparent", width: "fit-content" }}>
+        backgroundClip: "text", color: "transparent", width: "fit-content", position: "relative" }}>
         Hábitos de hoy · {doneCount}/{habits.length}
+        {/* estado especial: todos hechos → una estrella líquida con alas */}
+        {habits.length > 0 && doneCount === habits.length && <EstrellaAlada size={52} className="orn-completo" />}
       </div>
       {habits.length === 0 ? (
         <button onClick={() => onNavigate?.("daily")} style={emptyCard}>
@@ -192,7 +202,7 @@ export default function Today({ onNavigate }) {
             return (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 0",
                 borderBottom: i < habits.length - 1 ? `1px solid ${C.paperEdge}` : "none" }}>
-                <button onClick={() => toggleHabit(t)} aria-label={ok ? "Desmarcar" : "Marcar hecho"}
+                <button onClick={() => toggleHabit(t)} aria-label={ok ? "Desmarcar" : "Marcar hecho"} data-estrella={ok ? "hecho" : "marcar"}
                   style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, border: "none", cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     background: ok ? GRAD.gold : "transparent", boxShadow: ok ? GLOW.gold : "none",

@@ -69,7 +69,7 @@ export default function DailyTasks() {
       {items.map((t) => (
         <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 14, background: C.paper,
           borderRadius: 10, padding: "14px 16px", marginBottom: 10, border: `1px solid ${C.paperEdge}` }}>
-          <button onClick={() => toggleToday(t)} style={{ width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+          <button onClick={() => toggleToday(t)} data-estrella={t.doneToday ? "hecho" : "marcar"} style={{ width: 26, height: 26, borderRadius: 7, flexShrink: 0,
             background: t.doneToday ? C.olive : "transparent", border: `2px solid ${t.doneToday ? C.olive : C.sepia}`,
             display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} aria-label="Marcar hoy">
             {t.doneToday && <Check size={16} color={C.cream} strokeWidth={3} />}

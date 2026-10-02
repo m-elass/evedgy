@@ -56,7 +56,7 @@ export default function Goals() {
             marginBottom: 11, border: `1px solid ${C.paperEdge}`,
             borderLeft: `4px solid ${done ? C.olive : C.paperEdge}` }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-              <button onClick={() => setStatus(g, done ? "pendiente" : "cumplido")}
+              <button onClick={() => setStatus(g, done ? "pendiente" : "cumplido")} data-estrella={done ? "hecho" : "marcar"}
                 style={{ background: done ? C.olive : "transparent", border: `2px solid ${done ? C.olive : C.sepia}`,
                   width: 24, height: 24, borderRadius: 24, flexShrink: 0, cursor: "pointer", marginTop: 2,
                   display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Marcar cumplido">

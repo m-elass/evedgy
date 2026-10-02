@@ -1,6 +1,6 @@
 # Actualización de octubre — velocidad, carta diaria, Saber, Sistema y widgets
 
-Esta versión hace cuatro cosas:
+Esta versión hace cinco cosas:
 
 1. **Arregla la lentitud y los «datos que desaparecen».** Tus datos nunca se
    borraban: cuando una petición fallaba, la app pintaba la sección vacía.
@@ -22,7 +22,24 @@ Esta versión hace cuatro cosas:
    Ojo, Hacer la Flecha Alada, Vida las Hojas y Mente la Luna con su pluma. Hilos de
    oro, cuerpos de cristal translúcido, velos de gasa y un cielo azul noche con
    nebulosa. Las secciones, sus nombres y sus relaciones no cambian, y se usa igual:
-   arrastrar el mar y tocar una estrella para entrar.
+   arrastrar el mar y tocar una estrella para entrar. Ahora se arrastra fluido,
+   sin tirones.
+5. **Viste por dentro cada estrella** con un sistema ornamental de agua, cristal
+   y luz:
+   - Cada constelación tiene su glifo, su color y una gran reliquia de fondo,
+     muy tenue.
+   - Las secciones principales (Hoy, Entreno, Hábitos, Lecturas, Destellos y
+     Objetivos) llevan además un sello astral.
+   - Al entrar en una sección, el agua «dibuja» su glifo una sola vez. Si
+     vienes del Mar, atraviesas la estrella que tocaste.
+   - Los botones principales responden con ondas de agua, y al completar un
+     hábito, una tarea o un objetivo nace una estrella líquida.
+   - La app funciona exactamente igual. Además, **Tareas → Gestionar secciones**
+     vuelve a abrirse: antes salía «Algo se ha torcido aquí».
+
+> **Si ya habías hecho todas las tandas** antes de esta entrega, este cambio
+> solo toca la app: repite únicamente la **Tanda 2**, que consiste en sustituir
+> la carpeta `frontend`.
 
 Medido en pruebas, simulando un servidor que tarda 6 s en despertar:
 
@@ -102,8 +119,15 @@ siguiente. Todas se pueden deshacer.
    - **Habilidades**: arriba, tu Estado; debajo, las Misiones del día y la
      Misión semanal; al final, cada habilidad con su rango y su barra.
    - **Mar de estrellas**: arrastra hasta cada figura (el Dragón, el Ojo, la
-     Flecha Alada, las Hojas y la Luna). Toca una estrella: su constelación se
-     enciende y entras en la sección, como siempre.
+     Flecha Alada, las Hojas y la Luna). Debe moverse suave, sin tirones. Toca
+     una estrella: su constelación se enciende y entras en la sección, como
+     siempre, atravesando la estrella.
+   - **Dentro de una sección**: junto al título se dibuja una vez su glifo con
+     una línea de agua. En Hoy aparece el sello con alas, y la frase del día va
+     enmarcada.
+   - **Marca un hábito**: nace una estrella líquida. Desmárcalo y todo queda
+     como estaba.
+   - **Tareas → Gestionar secciones**: se abre el panel de secciones.
    - **Modo avión**: abre la app y deben verse tus datos, con el aviso «Sin
      conexión» arriba. Intenta marcar un hábito: debe decir que no se pudo,
      **nunca** fingir que se guardó.

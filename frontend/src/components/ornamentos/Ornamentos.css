@@ -1,0 +1,300 @@
+/*
+ * ornamentos/Ornamentos.css — paleta, materiales, composición y movimiento
+ * del sistema ornamental «hidro-cristalino».
+ *
+ * Jerarquía de movimiento (de menos a más):
+ *   fondo casi quieto · filigranas quietas · cristales apenas flotan ·
+ *   polvo lento · estrellas que respiran muy poco · interacción clara y breve ·
+ *   la entrada en la sección (ceremonia) es lo más visible.
+ * Todo lo continuo anima solo transform/opacity de cajas HTML o de la raíz
+ * del SVG (va por la GPU, sin repintar). Nada de filtros de desenfoque.
+ */
+
+/* ═══ PALETA ORNAMENTAL ═══ */
+:root {
+  --orn-noche: #0A1838;   /* navy profundo / índigo */
+  --orn-azul: #2B5FC4;    /* azul de agua honda */
+  --orn-agua: #5DA6F2;    /* agua */
+  --orn-hielo: #BFE3FF;   /* azul hielo */
+  --orn-luz: #F5FBFF;     /* blanco frío */
+  --orn-oro: #DDBB76;     /* dorado suave */
+  --orn-champan: #F4E4BE; /* champán */
+  --orn-violeta: #B6A4F0; /* violeta, muy controlado */
+  /* el color secundario de cada constelación (el mismo de su figura en el Mar) */
+  --orn-z-hoy: #F2D08A;
+  --orn-z-cuerpo: #BDB2FA;
+  --orn-z-saber: #9EDDF6;
+  --orn-z-hacer: #EAD7AA;
+  --orn-z-mente: #C7AEF2;
+  --orn-z-vida: #9BE3D3;
+  --orn-z-ajustes: #CFDDF2;
+}
+/* Sobre papel claro (tema «Tribunal de agua»): líneas más hondas para que se lean */
+:root[data-orn="claro"] .orn-papel {
+  --orn-hielo: #5C88C0; --orn-luz: #FFFFFF; --orn-oro: #B38834; --orn-champan: #C79E4C; --orn-agua: #4C88CC;
+}
+
+/* ═══ BASE ═══ */
+.orn { display: inline-block; vertical-align: middle; overflow: visible; pointer-events: none; flex-shrink: 0; }
+.orn-defs { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+
+/* materiales (clases en lugar de atributos: así un tema las puede ajustar) */
+.orn-filo { fill: none; stroke: var(--orn-luz); stroke-linejoin: round; }
+.orn-arista { fill: none; stroke: var(--orn-luz); }
+.orn-chispa-linea { fill: none; stroke: #fff; stroke-linecap: round; }
+.orn-oro { fill: none; stroke: var(--orn-oro); stroke-linecap: round; stroke-linejoin: round; }
+.orn-oro-velo { fill: none; stroke: var(--orn-champan); opacity: .13; stroke-linejoin: round; }
+.orn-hielo { fill: none; stroke: var(--orn-hielo); stroke-linecap: round; stroke-linejoin: round; }
+.orn-vv { fill: url(#orn-vidrio); }
+.orn-relleno-hielo { fill: var(--orn-hielo); }
+.orn-relleno-luz { fill: var(--orn-luz); }
+.orn-relleno-oro { fill: var(--orn-champan); }
+
+/* ═══ AGUA QUE DIBUJA: la ceremonia de entrada (≈1,4 s, una sola vez) ═══
+ * 1 punto de luz → 2 trazo de agua → 3 forma → 4 cristal → 5 destellos → 6 calma */
+.orn-d-punto { opacity: 0; }
+.orn-ceremonia .orn-d-punto {
+  transform-box: fill-box; transform-origin: center;
+  animation: ornPunto 1.3s cubic-bezier(.2,.7,.3,1) var(--orn-retraso, .12s) both;
+}
+.orn-ceremonia .orn-d-trazo {
+  stroke-dasharray: 1; animation: ornTrazo .72s cubic-bezier(.5,.05,.25,1) calc(var(--orn-retraso, .12s) + .1s) both;
+}
+.orn-ceremonia .orn-d-forma {
+  stroke-dasharray: 1; animation: ornTrazo .8s cubic-bezier(.45,.05,.25,1) calc(var(--orn-retraso, .12s) + .3s) both;
+}
+.orn-ceremonia .orn-d-agua {
+  transform-box: fill-box; transform-origin: 0% 50%;
+  animation: ornAgua .9s cubic-bezier(.45,.05,.25,1) calc(var(--orn-retraso, .12s) + .14s) both;
+}
+.orn-ceremonia .orn-d-cristal {
+  transform-box: fill-box; transform-origin: center;
+  animation: ornCristal .6s cubic-bezier(.2,.9,.3,1.12) calc(var(--orn-retraso, .12s) + .55s) both;
+}
+.orn-ceremonia .orn-d-chispa {
+  transform-box: fill-box; transform-origin: center;
+  animation: ornChispa .55s cubic-bezier(.2,.9,.3,1.25) calc(var(--orn-retraso, .12s) + .85s) both;
+}
+.orn-ceremonia .orn-d-calma { animation: ornCalma 1s ease-out calc(var(--orn-retraso, .12s) + .5s) both; }
+@keyframes ornPunto {
+  0% { opacity: 0; transform: scale(.15); }
+  14% { opacity: 1; transform: scale(1); }
+  55% { opacity: .9; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1.8); }
+}
+@keyframes ornTrazo { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes ornAgua { from { opacity: 0; transform: scaleX(.05); } }
+@keyframes ornCristal { from { opacity: 0; transform: scale(.3); } }
+@keyframes ornChispa { 0% { opacity: 0; transform: scale(0); } 60% { opacity: 1; transform: scale(1.35); } }
+@keyframes ornCalma { 0% { opacity: 0; } 55% { opacity: 1; } }
+
+/* Ningún ornamento (ni el deslizamiento de entrada con su sello) puede ensanchar la página:
+   se recorta solo lo que sobresale a los lados, sin crear barras ni romper nada (overflow: clip). */
+.zoomer { overflow-x: clip; }
+
+/* ═══ CABECERA DE SECCIÓN ═══ */
+.orn-cabecera { position: relative; }
+.orn-divisor { display: block; overflow: visible;
+  -webkit-mask-image: linear-gradient(90deg, #000 72%, transparent);
+  mask-image: linear-gradient(90deg, #000 72%, transparent); }
+.orn-sello { position: relative; display: inline-block; flex-shrink: 0; pointer-events: none; }
+.orn-sello > svg { display: block; width: 100%; height: 100%; }
+.orn-sello-fondo { fill: #0D1C44; opacity: .9; }
+.orn-cab-sello { position: absolute; right: -4px; top: -10px; }
+@media (max-width: 359px) { .orn-cab-sello { display: none; } }
+
+/* la luz viva del centro del sello: respira muy poco (capa propia, sin repintar el sello) */
+.orn-luz-viva { position: absolute; left: 30%; top: 30%; width: 40%; height: 40%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,.5), rgba(191,227,255,.16) 42%, transparent 70%);
+  animation: ornRespira 6.5s ease-in-out infinite alternate; }
+@keyframes ornRespira { from { opacity: .45; transform: scale(.94); } to { opacity: .95; transform: scale(1.04); } }
+.orn-quieto .orn-luz-viva, .orn-quieto.orn-flota { animation-play-state: paused; }
+
+/* sello con alas (Hoy) */
+.orn-sello-alado { position: relative; display: inline-flex; align-items: center; justify-content: center; pointer-events: none; }
+.orn-sello-alado .orn-sello-alas { position: absolute; left: 0; top: 50%; transform: translateY(-46%); width: 100%; height: auto; opacity: .9; }
+.orn-sello-alado .orn-sello-centro { position: relative; }
+.orn-hoy-sello { position: absolute; right: -10px; top: 50%; transform: translateY(-56%); }
+@media (max-width: 379px) { .orn-hoy-sello { transform: translateY(-56%) scale(.8); transform-origin: right center; } }
+@media (max-width: 339px) { .orn-hoy-sello { display: none; } }
+
+/* estrella líquida con alas (estados especiales) */
+.orn-estrella-alada { display: inline-block; position: relative; pointer-events: none; }
+.orn-estrella-alada > svg:first-child { display: block; width: 100%; height: auto; }
+.orn-ea-estrella { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -56%); }
+
+/* el pequeño par de alas del estado especial «todos los hábitos hechos» */
+.orn-completo { position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); pointer-events: none;
+  animation: ornCompleto .7s cubic-bezier(.2,.9,.3,1.2) both; }
+@keyframes ornCompleto { from { opacity: 0; transform: translateY(-50%) scale(.5); } }
+
+/* ═══ MARCOS (capa superpuesta: no cambia el tamaño ni el sitio de nada) ═══ */
+.orn-marco { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 0; }
+.orn-marco-linea { position: absolute; inset: 6px; border-radius: calc(var(--orn-r, 18px) - 6px);
+  border: 1px solid rgba(221,187,118,.30); box-shadow: inset 0 0 0 1px rgba(191,227,255,.05); }
+.orn-marco-esq { position: absolute; }
+.orn-esq-tl { left: 2px; top: 2px; }
+.orn-esq-tr { right: 2px; top: 2px; transform: scaleX(-1); }
+.orn-esq-bl { left: 2px; bottom: 2px; transform: scaleY(-1); }
+.orn-esq-br { right: 2px; bottom: 2px; transform: scale(-1, -1); }
+.orn-marco-gema { position: absolute; left: 50%; top: -3px; transform: translateX(-50%); }
+.orn-marco-gema.abajo { top: auto; bottom: -3px; }
+.orn-marco-minima .orn-marco-esq { opacity: .85; }
+
+/* los avisos llevan un pequeño cristal engastado arriba */
+.orn-aviso-gema { position: absolute; left: 50%; top: -7px; transform: translateX(-50%); }
+
+/* el vacío como invitación: una gota engastada en el borde */
+.orn-vacio-gota { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); }
+
+/* ═══ CRISTALES QUE FLOTAN (movimiento mínimo) ═══ */
+.orn-suspendido { display: inline-block; pointer-events: none; }
+.orn-suspendido > svg { display: block; }
+.orn-flota { animation: ornFlota 12s ease-in-out infinite alternate; }
+@keyframes ornFlota { from { transform: translateY(-3px) rotate(-1.2deg); } to { transform: translateY(3px) rotate(1.2deg); } }
+
+/* ═══ POLVO DE LUZ (pocas motas, muy lentas) ═══ */
+.orn-polvo { position: absolute; inset: 0; pointer-events: none; }
+.orn-polvo i { position: absolute; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, rgba(255,255,255,.95) 0, rgba(191,227,255,.5) 38%, transparent 70%);
+  animation: ornTitila 9s ease-in-out infinite alternate; }
+.orn-polvo i.oro { background: radial-gradient(circle, rgba(255,247,226,.95) 0, rgba(242,208,138,.55) 38%, transparent 70%); }
+.orn-polvo i.est::before, .orn-polvo i.est::after { content: ""; position: absolute; left: 50%; top: 50%; border-radius: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent); }
+.orn-polvo i.est::before { width: 420%; height: 1px; transform: translate(-50%, -50%); }
+.orn-polvo i.est::after { width: 1px; height: 520%; transform: translate(-50%, -50%);
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,.85), transparent); }
+.orn-polvo-asciende i { animation-name: ornAsciende; animation-timing-function: cubic-bezier(.45,.05,.55,.95); animation-direction: normal; }
+.orn-polvo-orbita i { animation-name: ornGira; animation-timing-function: cubic-bezier(.45,.05,.55,.95); animation-direction: alternate; }
+.orn-polvo-impulso i { animation-name: ornImpulso; animation-timing-function: cubic-bezier(.4,0,.6,1); animation-direction: normal; }
+.orn-polvo-ondea i { animation-name: ornOndea; }
+@keyframes ornTitila { 0% { opacity: 0; transform: scale(.7); } 35%, 65% { opacity: var(--o, .7); transform: scale(1); } 100% { opacity: .1; transform: scale(.85); } }
+@keyframes ornAsciende { 0% { opacity: 0; transform: translate3d(0, 0, 0); } 18%, 78% { opacity: var(--o, .7); } 100% { opacity: 0; transform: translate3d(8px, -70px, 0); } }
+@keyframes ornGira { 0% { opacity: var(--o, .7); transform: rotate(0deg) translateX(12px) rotate(0deg); } 50% { opacity: .2; } 100% { opacity: var(--o, .7); transform: rotate(360deg) translateX(12px) rotate(-360deg); } }
+@keyframes ornImpulso { 0% { opacity: 0; transform: translate3d(0, 0, 0); } 25%, 70% { opacity: var(--o, .7); } 100% { opacity: 0; transform: translate3d(30px, -46px, 0); } }
+@keyframes ornOndea { 0% { opacity: .15; transform: translate3d(-10px, 2px, 0); } 50% { opacity: var(--o, .7); transform: translate3d(0, -4px, 0); } 100% { opacity: .2; transform: translate3d(10px, 2px, 0); } }
+
+/* ═══ EL SANTUARIO: la atmósfera de dentro de la estrella ═══ */
+.orn-santuario { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; contain: strict; }
+.orn-sala { position: absolute; animation: ornSala 1.6s cubic-bezier(.2,.7,.3,1) both; transition: transform 1.2s cubic-bezier(.3,.7,.3,1); }
+.orn-sala.sale { animation: ornSalaFuera .8s ease both; }
+@keyframes ornSala { from { opacity: 0; transform: scale(1.06); } }
+@keyframes ornSalaFuera { to { opacity: 0; } }
+.orn-reliquia { display: block; width: 100%; height: 100%; opacity: .1; }
+.orn-z-saber .orn-reliquia, .orn-z-hacer .orn-reliquia { opacity: .11; }
+.orn-z-hoy .orn-reliquia { opacity: .09; }
+
+/* MÓVIL (por defecto): la reliquia asoma por un lado, arriba, detrás de la cabecera */
+.orn-sala { width: min(118vw, 640px); height: min(118vw, 640px); top: -6vh; }
+.orn-santuario[data-lado="der"] .orn-sala { right: -58vw; }
+.orn-santuario[data-lado="izq"] .orn-sala { left: -58vw; }
+.orn-santuario[data-orden="1"] .orn-sala { top: -2vh; }
+.orn-santuario[data-orden="2"] .orn-sala { top: -10vh; }
+.orn-sala-orbita { position: absolute; left: -16%; top: 30%; width: 132%; height: auto; opacity: .42; }
+.orn-motivo { position: absolute; animation: ornAparece 1.8s ease .45s both; }
+.orn-santuario[data-lado="der"] .orn-motivo { left: -26px; top: 46vh; }
+.orn-santuario[data-lado="izq"] .orn-motivo { right: -26px; top: 46vh; }
+.orn-motivo-pieza { opacity: .5; }
+.orn-motivo-sello { opacity: .22; }
+.orn-estrellas-grupo, .orn-gotas-grupo { display: inline-flex; align-items: flex-start; gap: 10px; }
+.orn-estrellas-grupo > :nth-child(2) { margin-top: 40px; }
+.orn-estrellas-grupo > :nth-child(3) { margin-top: 12px; }
+.orn-gotas-grupo > :nth-child(2) { margin-top: 30px; }
+.orn-gotas-grupo > :nth-child(3) { margin-top: 64px; }
+.orn-cristal-margen { position: absolute; opacity: .55; animation: ornFlota 13s ease-in-out infinite alternate; }
+.orn-santuario[data-lado="der"] .orn-cristal-margen { right: 7vw; top: 30vh; }
+.orn-santuario[data-lado="izq"] .orn-cristal-margen { left: 7vw; top: 30vh; }
+.orn-filigrana-margen { position: absolute; opacity: .42; display: none; }
+.orn-polvo-fondo { animation: ornAparece 2.4s ease .8s both; }
+@keyframes ornAparece { from { opacity: 0; } }
+/* en el móvil, menos: solo cuatro motas y sin filigrana */
+@media (max-width: 699px) {
+  .orn-polvo-fondo i:nth-child(n+5) { display: none; }
+  .orn-sala-orbita { display: none; }   /* en el móvil, la reliquia sola: más espacio limpio */
+  .orn-cristal-margen { display: none; }
+  .orn-motivo { transform: scale(.72); transform-origin: left center; }
+  .orn-santuario[data-lado="izq"] .orn-motivo { transform-origin: right center; }
+}
+
+/* PANTALLAS ANCHAS: la arquitectura vive en los márgenes, a los lados de la columna */
+@media (min-width: 700px) {
+  .orn-sala { width: 640px; height: 640px; top: 4vh; }
+  .orn-santuario[data-lado="der"] .orn-sala { right: auto; left: calc(50% + 150px); }
+  .orn-santuario[data-lado="izq"] .orn-sala { left: auto; right: calc(50% + 150px); }
+  .orn-santuario[data-lado="der"] .orn-motivo { left: calc(50% - 280px - 230px); top: 42vh; }
+  .orn-santuario[data-lado="izq"] .orn-motivo { right: calc(50% - 280px - 230px); top: 42vh; }
+  .orn-santuario[data-lado="der"] .orn-cristal-margen { right: auto; left: calc(50% - 280px - 120px); top: 16vh; }
+  .orn-santuario[data-lado="izq"] .orn-cristal-margen { left: auto; right: calc(50% - 280px - 120px); top: 16vh; }
+  .orn-filigrana-margen { display: block; }
+  .orn-santuario[data-lado="der"] .orn-filigrana-margen { left: 18px; bottom: 18px; transform: scaleY(-1); }
+  .orn-santuario[data-lado="izq"] .orn-filigrana-margen { right: 18px; bottom: 18px; transform: scale(-1, -1); }
+}
+@media (min-width: 700px) and (max-width: 1099px) {
+  .orn-motivo, .orn-cristal-margen { display: none; }
+}
+
+/* ═══ LA ÓRBITA DE LA ESTRELLA DORADA (une la página con el Mar) ═══ */
+.orn-orbita-mar { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); pointer-events: none; }
+.orn-orbita-mar.atras { z-index: 9; }
+.orn-orbita-mar.delante { z-index: 11; }
+
+/* ═══ CAPA DE EFECTOS (ondas, estrellas que nacen, el cruce de la estrella) ═══ */
+.orn-efectos { position: fixed; inset: 0; z-index: 30; pointer-events: none; overflow: hidden; contain: strict; }
+.orn-efecto { position: absolute; width: 0; height: 0; }
+.orn-efecto > * { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); }
+.orn-onda { fill: none; stroke: var(--orn-hielo); stroke-width: 1; transform-box: fill-box; transform-origin: center; opacity: 0;
+  animation: ornOnda .78s cubic-bezier(.15,.6,.3,1) both; }
+.orn-onda.oro { stroke: var(--orn-oro); }
+.orn-onda.o2 { animation-delay: .07s; }
+.orn-onda.o3 { animation-delay: .14s; }
+.orn-onda-chispa { fill: var(--orn-luz); transform-box: fill-box; transform-origin: center; animation: ornOndaChispa .6s ease-out both; }
+@keyframes ornOnda { 0% { opacity: 0; transform: scale(.2); } 25% { opacity: .85; } 100% { opacity: 0; transform: scale(1); } }
+@keyframes ornOndaChispa { 0% { opacity: 0; transform: scale(.3); } 30% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: scale(.6); } }
+.orn-efecto-onda .orn-ondas { transform: translate(-50%, -50%) scale(.85); }
+/* la estrella líquida que nace al completar algo */
+.orn-estallido { animation: ornEstallido 1s cubic-bezier(.2,.8,.3,1) both; }
+@keyframes ornEstallido {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(-12deg); }
+  30% { opacity: 1; transform: translate(-50%, -62%) scale(1.15) rotate(0deg); }
+  70% { opacity: .9; transform: translate(-50%, -78%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -96%) scale(.85); }
+}
+.orn-ondas-suaves { opacity: .8; }
+.orn-chispa-vuela { position: absolute; left: 0; top: 0; width: 4px; height: 4px; border-radius: 50%;
+  background: radial-gradient(circle, #fff, rgba(242,208,138,.7) 45%, transparent 70%); opacity: 0;
+  animation: ornVuela .9s cubic-bezier(.2,.7,.3,1) .08s both; }
+.orn-chispa-vuela.a { --dx: -26px; --dy: -22px; }
+.orn-chispa-vuela.b { --dx: 24px; --dy: -28px; animation-delay: .14s; }
+.orn-chispa-vuela.c { --dx: 4px; --dy: -40px; animation-delay: .2s; }
+@keyframes ornVuela { 0% { opacity: 0; transform: translate(-50%, -50%); } 25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))); } }
+/* el cruce: al entrar desde el Mar se atraviesa la estrella tocada */
+.orn-cruce-luz { width: 240px; height: 240px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.75), rgba(191,227,255,.32) 30%, rgba(93,166,242,.08) 55%, transparent 70%);
+  animation: ornCruceLuz 1.1s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes ornCruceLuz { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.2); } 18% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(4.5); } }
+.orn-cruce-estrella { animation: ornCruceEstrella 1s cubic-bezier(.35,.1,.25,1) both; }
+@keyframes ornCruceEstrella { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.4); } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(5.5); } }
+.orn-cruce-ondas .orn-onda { animation-duration: 1.05s; }
+
+/* ═══ INTERACCIÓN ═══ */
+.orn-puntas { position: absolute; inset: 0; pointer-events: none; }
+.orn-puntas .izq, .orn-puntas .der { position: absolute; top: 50%; }
+.orn-puntas .izq { left: -5px; transform: translateY(-50%) rotate(90deg); }
+.orn-puntas .der { right: -5px; transform: translateY(-50%) rotate(90deg); }
+
+/* ═══ RESPETO A «REDUCIR MOVIMIENTO» ═══ */
+@media (prefers-reduced-motion: reduce) {
+  .orn-ceremonia *, .orn-flota, .orn-cristal-margen, .orn-polvo i, .orn-luz-viva, .orn-sala, .orn-motivo,
+  .orn-polvo-fondo, .orn-completo { animation: none !important; }
+  .orn-polvo i { opacity: var(--o, .6); }
+  .orn-efecto-onda, .orn-efecto-cruce .orn-cruce-estrella, .orn-efecto-cruce .orn-cruce-ondas, .orn-chispa-vuela,
+  .orn-ondas-suaves { display: none; }
+  /* sin desplazamientos: la estrella del logro solo aparece y se desvanece */
+  .orn-estallido { animation: ornFundido .9s ease both !important; }
+  .orn-cruce-luz { animation: ornFundidoLuz .7s ease both !important; }
+}
+@keyframes ornFundido { 0% { opacity: 0; transform: translate(-50%, -60%); } 30%, 60% { opacity: 1; transform: translate(-50%, -60%); } 100% { opacity: 0; transform: translate(-50%, -60%); } }
+@keyframes ornFundidoLuz { 0%, 100% { opacity: 0; transform: translate(-50%, -50%); } 35% { opacity: .6; transform: translate(-50%, -50%); } }

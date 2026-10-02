@@ -16,7 +16,7 @@ import { api } from "../lib/api";
 import { useApi, useRefrescar } from "../lib/useApi";
 import { avisar } from "../lib/toast";
 import { C, FONT_BODY, FONT_DISPLAY, GRAD } from "../lib/theme";
-import { SectionHeader, Field, SolidBtn, Empty } from "../components/ui";
+import { SectionHeader, Field, SolidBtn, Empty, AddBtn } from "../components/ui";
 import { HelpDot } from "../components/Help";
 
 /* A dónde se puede llevar una tarea que en realidad es otra cosa */
@@ -170,7 +170,7 @@ export default function RandomTasks() {
                 <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 11,
                   background: C.paper, borderLeft: `3px solid ${g.color}`,
                   borderRadius: 10, padding: "11px 12px", marginBottom: 8 }}>
-                  <button onClick={() => alternar(t)} aria-label={t.done ? "Marcar pendiente" : "Completar"}
+                  <button onClick={() => alternar(t)} aria-label={t.done ? "Marcar pendiente" : "Completar"} data-estrella={t.done ? "hecho" : "marcar"}
                     style={{ width: 24, height: 24, borderRadius: 8, flexShrink: 0, cursor: "pointer",
                       border: t.done ? "none" : `2px solid ${C.paperEdge}`,
                       background: t.done ? GRAD.gold : "transparent",

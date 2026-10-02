@@ -10,7 +10,7 @@
 
 /* las nubes de la nebulosa: una textura suave, pintada una sola vez y estirada sobre todo el cielo */
 .cel-nebulosa { position: absolute; left: 0; top: 0; pointer-events: none; background-size: 100% 100%;
-  background-repeat: no-repeat; opacity: .9; }
+  background-repeat: no-repeat; }
 
 .cel-lejos > svg { display: block; animation: cel-flota 120s ease-in-out infinite alternate; }
 @keyframes cel-flota { from { transform: translate(-10px, -6px); } to { transform: translate(12px, 8px); } }
@@ -24,12 +24,13 @@
 /* ── el cuerpo de seda de cada figura ── */
 .cel-fantasma { position: absolute; pointer-events: none; opacity: .88;
   transition: opacity 1.2s ease; animation: cel-nace 2.8s ease backwards; }
-.cel-fantasma > svg { display: block; overflow: visible; animation: cel-niebla 13s ease-in-out infinite; }
+.cel-fantasma > canvas, .cel-fantasma > .cel-fantasma-svg { display: block; animation: cel-niebla 13s ease-in-out infinite; }
+.cel-fantasma-svg { width: 100%; height: 100%; }
+.cel-fantasma-svg > svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .cel-fantasma.viva { opacity: 1; }
 .cel-fantasma.despierta { opacity: 1; transition-duration: .45s; }
 @keyframes cel-nace { from { opacity: 0; } }
 @keyframes cel-niebla { 0%, 100% { opacity: .82; } 50% { opacity: 1; } }
-.cel-fantasma .cel-borde { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ── cada figura en su lienzo ── */
 .cel-figura { position: absolute; pointer-events: none; opacity: .93;
@@ -176,6 +177,15 @@
 
 /* «reducir movimiento»: el cielo queda quieto */
 @media (prefers-reduced-motion: reduce) {
-  .cel-lejos > svg, .cel-fantasma, .cel-fantasma > svg, .cel-figura, .cel-rosa, .cel-rosa > svg,
+  .cel-lejos > svg, .cel-fantasma, .cel-fantasma > canvas, .cel-fantasma > .cel-fantasma-svg, .cel-figura, .cel-rosa, .cel-rosa > svg,
   .cel-tw, .cel-deriva, .cel-zona, .cel-astro, .cel-halo, .cel-luz { animation: none !important; }
 }
+
+/* ── fluidez: mientras se arrastra el mar, el cielo se queda quieto (la pausa no se nota) ── */
+.cel-arrastrando .cel-tw, .cel-arrastrando .cel-deriva, .cel-arrastrando .cel-halo, .cel-arrastrando .cel-luz,
+.cel-arrastrando .cel-fantasma > canvas, .cel-arrastrando .cel-fantasma > .cel-fantasma-svg,
+.cel-arrastrando .cel-rosa > svg, .cel-arrastrando .cel-lejos > svg, .cel-arrastrando .meteors i {
+  animation-play-state: paused !important; }
+/* con el mar abierto, el fondo de la app queda tapado: sus animaciones descansan */
+body.cel-en-el-mar .sea, body.cel-en-el-mar .sea::before, body.cel-en-el-mar .sea::after,
+body.cel-en-el-mar .sea i { animation-play-state: paused; }

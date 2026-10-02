@@ -53,6 +53,8 @@ import ThemeSettings from "./sections/ThemeSettings";
 import SettingsHub from "./sections/SettingsHub";
 import StarMap from "./components/StarMap";
 import { HelpProvider, HelpDot } from "./components/Help";
+// El sistema ornamental de dentro de las estrellas (agua → cristal → glifo → ornamento)
+import { OrnamentDefs, Santuario, CapaEfectos, OrbitaDelMar, marcarEntrada, cruzarEstrella } from "./components/ornamentos";
 
 // Todas las secciones, con su zona para el menu.
 const SECTIONS = {
@@ -152,7 +154,7 @@ function Shell() {
   if (!session) return <Auth />;
 
   // Entrar en una estrella (desde el mar) y volver al mar (zoom out)
-  function enterStar(id) { setView(id); setClosing(false); setMode("section"); }
+  function enterStar(id) { marcarEntrada(id, "mar"); cruzarEstrella(); setView(id); setClosing(false); setMode("section"); }
   function toSea() {
     setClosing(true);
     setTimeout(() => { setMode("map"); setClosing(false); }, 290);
@@ -161,6 +163,7 @@ function Shell() {
   function go(id) {
     const a = FLOW.indexOf(view), b = FLOW.indexOf(id);
     setAnim(b >= a ? "slide-l" : "slide-r");       // hacia dónde fluye el contenido
+    if (id !== view) marcarEntrada(id, "corriente");
     setView(id); setMenuOpen(false);
   }
   // Deslizar como corriente: swipe horizontal = sección anterior/siguiente
@@ -188,6 +191,7 @@ function Shell() {
     <div style={{ minHeight: "100vh", background: C.ink, display: "flex", flexDirection: "column" }}>
       {/* EL MAR: la capa viva que permanece mientras el contenido fluye */}
       <div className="sea" aria-hidden="true"><i /><i /><i /><i /><i /></div>
+      <OrnamentDefs />
       {mode === "map" ? (<>
         <StarMap stars={STARS} edges={EDGES} zones={SKY_ZONES} onEnter={enterStar} />
         {/* Qué es este cielo y cómo se navega */}
@@ -199,6 +203,8 @@ function Shell() {
         </div>
       </>
       ) : (<>
+      {/* dentro de la estrella: la atmósfera hidro-cristalina de su constelación */}
+      <Santuario seccion={view} />
       <div key={view + "-z"} className={"zoomer" + (closing ? " out" : "")}>
       <header style={{ padding: "22px 20px 16px", borderBottom: "none", display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative", zIndex: 1 }}>
         <div>
@@ -229,7 +235,9 @@ function Shell() {
         boxShadow: "0 0 22px rgba(232,184,75,.6), 0 8px 20px rgba(0,0,0,.45)" }}>
         <Sparkles size={22} />
       </button>
+      <OrbitaDelMar />
       </>)}
+      <CapaEfectos />
 
       {/* Menu completo (se abre con "Mas") */}
       {false && (
