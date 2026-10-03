@@ -1,6 +1,6 @@
-# Actualización de octubre — velocidad, carta diaria, Saber, Sistema y widgets
+# Actualización de octubre — velocidad, carta diaria, Saber, Sistema, widgets y plan del día
 
-Esta versión hace cinco cosas:
+Esta versión hace ocho cosas:
 
 1. **Arregla la lentitud y los «datos que desaparecen».** Tus datos nunca se
    borraban: cuando una petición fallaba, la app pintaba la sección vacía.
@@ -36,10 +36,47 @@ Esta versión hace cinco cosas:
      hábito, una tarea o un objetivo nace una estrella líquida.
    - La app funciona exactamente igual. Además, **Tareas → Gestionar secciones**
      vuelve a abrirse: antes salía «Algo se ha torcido aquí».
+6. **Tareas en Hoy y widget de Frases:**
+   - En **Tareas → Gestionar secciones**, cada sección tiene un botón
+     **☀ En Hoy**. Sus tareas pendientes salen también en Hoy, debajo de los
+     hábitos, y se marcan desde allí.
+   - Nuevo **widget de Frases** (Ajustes → Widgets del móvil → Widget de
+     Frases), para la pantalla de bloqueo o la de inicio:
+     - enseña solo tus frases, en grande;
+     - puede ir cambiando a lo largo del día;
+     - puede avisarte cada mañana con la frase del día.
+7. **Hábitos en cuatro tipos y «Tu plan de hoy», decidido por Claude:**
+   - **Hábitos** separa ahora cuatro tipos:
+     - **hábitos**, con sus minutos;
+     - **objetivos del día**, bloques largos como estudiar 90 min;
+     - **métricas**, con botones rápidos y barra (agua, proteína, pasos, sueño);
+     - **principios**, como «primero lo importante», que no se marcan: por la noche, «¿lo viviste?».
+   - Cada uno lleva sus minutos, cuántas veces a la semana (o qué días fijos) y su prioridad.
+   - Pones el **tiempo que tienes cada día de la semana** y lo que quieres conseguir.
+   - **Hoy** enseña solo lo que toca ese día, en orden y con su razón, sin
+     pasarse de tu tiempo. Lo que no cabe queda en «Si te da tiempo».
+   - Lo decide **Claude cada mañana, con tu suscripción**, desde GitHub Actions.
+     Si no lo conectas, o un día falla, lo decide el plan automático.
+   - El «Diseñar a medida» de las misiones de Habilidades también pasa a
+     hacerlo Claude con tu suscripción.
+   - Una configuración ya preparada se aplica en un paso: **Tanda 6**.
+8. **Privacidad, con el repositorio público:**
+   - El repositorio no lleva ningún dato tuyo: los ejemplos del código son
+     genéricos.
+   - El `.gitignore` ya bloquea de verdad tus claves (`.env`) y tus
+     exportaciones. Antes, el de `backend` tenía un fallo y no lo hacía.
+   - La app puede ser **solo para ti**: aunque alguien se registre, el
+     servidor no le deja usar nada (**Tanda 7**).
 
-> **Si ya habías hecho todas las tandas** antes de esta entrega, este cambio
-> solo toca la app: repite únicamente la **Tanda 2**, que consiste en sustituir
-> la carpeta `frontend`.
+> **Si ya habías hecho todas las tandas** antes de esta entrega, haz la
+> **Tanda 7**. Sustituye la subida anterior y explica cómo. Después, la
+> **Tanda 6**, si aún no la hiciste.
+> El servidor solo **añade**:
+> - 3 tablas (el tiempo de cada día, el plan del día y las llaves del planificador);
+> - 10 columnas en los hábitos;
+> - 1 columna en sus registros diarios.
+>
+> No borra nada: tus hábitos y tus rachas siguen igual.
 
 Medido en pruebas, simulando un servidor que tarda 6 s en despertar:
 
@@ -58,8 +95,11 @@ siguiente. Todas se pueden deshacer.
 1. Abre tu app → **Ajustes → Tus datos → Exportar todos mis datos**. Guarda
    el archivo `tu-cuaderno-AAAA-MM-DD.json` en tu ordenador. Es tu copia.
 
-   Esta actualización no borra ni reescribe nada. Solo **añade** 10 tablas
-   nuevas y 5 columnas nuevas en «habilidades».
+   Esta actualización no borra ni reescribe nada. Solo **añade**:
+   - 13 tablas nuevas;
+   - 5 columnas nuevas en «habilidades»;
+   - 1 columna en las secciones de tareas;
+   - 11 columnas en los hábitos y sus registros.
 2. **Render** → tu servicio `tu-cuaderno-api` → **Settings** → apunta qué
    pone en **Region** (casi seguro *Oregon*). Lo usarás en la Tanda 5.
 3. **Render** → **Environment**: apunta los **nombres** de todas las
@@ -93,7 +133,7 @@ siguiente. Todas se pueden deshacer.
    - Abajo sale una fila con tres cifras:
      - `tablas_sin_rls` = **0**
      - `permisos_publicos` = **0**
-     - `tablas_total` = **36**
+     - `tablas_total` = **39**
 8. Abre tu app (aún la versión vieja) y guarda una nota de prueba. Debe
    funcionar: el servidor nuevo sigue entendiendo a la app vieja.
 
@@ -114,7 +154,10 @@ siguiente. Todas se pueden deshacer.
    debe poner `Versión xxxxxxx · servidor tu-cuaderno-api.onrender.com`. Las
    7 letras de la versión son el commit de GitHub.
 6. Pruebas rápidas:
-   - **Hoy** debe enseñar la tarjeta de la carta, las misiones y los hábitos.
+   - **Hoy** debe enseñar la tarjeta de la carta, las misiones y **Tu plan de
+     hoy** (con la etiqueta «Automático» hasta que hagas la Tanda 6).
+   - **Hábitos**: arriba, «Tu tiempo cada día»; debajo, tus hábitos. De
+     momento todos son del tipo «hábito», cada día. La Tanda 6 los ordena.
    - **Tareas**: las secciones salen plegadas y se abren al tocarlas.
    - **Habilidades**: arriba, tu Estado; debajo, las Misiones del día y la
      Misión semanal; al final, cada habilidad con su rango y su barra.
@@ -127,7 +170,9 @@ siguiente. Todas se pueden deshacer.
      enmarcada.
    - **Marca un hábito**: nace una estrella líquida. Desmárcalo y todo queda
      como estaba.
-   - **Tareas → Gestionar secciones**: se abre el panel de secciones.
+   - **Tareas → Gestionar secciones**: se abre el panel de secciones. Pulsa
+     **☀ En Hoy** en una sección y vuelve a Hoy: sus tareas pendientes salen
+     debajo de tu plan. Vuelve a pulsarlo para quitarla.
    - **Modo avión**: abre la app y deben verse tus datos, con el aviso «Sin
      conexión» arriba. Intenta marcar un hábito: debe decir que no se pudo,
      **nunca** fingir que se guardó.
@@ -236,6 +281,30 @@ Qué se ve en cada uno:
 En la estrella **Frases**, el icono del ojo decide qué frases pueden salir en
 el widget.
 
+**Widget de Frases (solo tus frases, en grande).** Está en **Ajustes → Widgets
+del móvil → Widget de Frases**:
+
+1. Elige si la frase cambia o es una al día, y si quieres el aviso de la
+   mañana y a qué hora.
+2. Pulsa **Copiar script de Frases**. En Scriptable, pulsa **+**, pégalo, ponle
+   de nombre «Frases» y pulsa ▶. Usa la misma llave que el otro widget, así
+   que no te la volverá a pedir.
+3. **Pantalla de bloqueo**: Personalizar → pantalla bloqueada → añade
+   Scriptable (el **rectangular** es el mejor para frases) → tócalo →
+   *Script*: «Frases». En la pantalla de bloqueo busca una frase que quepa.
+4. **Pantalla de inicio**: igual que el otro widget, eligiendo «Frases».
+   - Pequeño: frases cortas.
+   - Mediano y grande: la frase en grande, con su autor.
+5. El aviso de la mañana lo manda Scriptable: la primera vez, acepta sus
+   notificaciones.
+
+Si quieres cambiar algo (cada cuánto cambia la frase o la hora del aviso),
+vuelve a copiar el script y pégalo encima del anterior en Scriptable.
+
+Las frases del modo «cambia cada… horas» empiezan cada día a las 6:00 con la
+frase del día. También funcionan sin conexión, con las últimas que el widget
+vio.
+
 Si pierdes el móvil, ve a **Ajustes → Widgets → revocar la llave**. Cerrar
 sesión no la revoca.
 
@@ -304,6 +373,220 @@ El servidor viejo sigue funcionando con la misma base de datos.
 
 ---
 
+## Tanda 6 — Tus hábitos en 4 tipos y Claude planificando tu día (15 min)
+
+### 6.1 Aplica tu configuración (2 min)
+
+Si te preparé un archivo de configuración con tus hábitos (por ejemplo
+`mi-configuracion-habitos.json`), guárdalo **fuera del repositorio**: lleva
+datos tuyos y este repositorio puede ser público. Este documento no repite su
+contenido por la misma razón. Es una propuesta: cámbiala a tu gusto antes o
+después de aplicarla.
+
+1. Abre la app. Es más cómodo en el ordenador, en la dirección de Vercel.
+2. Ve a **Hábitos → Pegar configuración → Elegir archivo** y elige
+   `mi-configuracion-habitos.json`. También puedes abrir el archivo, copiar todo
+   su texto y pegarlo en el recuadro.
+3. Revisa la lista que aparece:
+   - Comprueba que se actualizan los que esperas.
+   - Solo cambia los hábitos cuyo nombre coincide.
+   - No borra ningún registro.
+4. Pulsa **Aplicar**.
+5. En **Hábitos → Tu tiempo cada día → Cambiar**:
+   - Ajusta las horas de cada día a tu vida real (clases, trabajo…).
+   - Repasa el texto de «lo que quieres conseguir».
+6. Toca el lápiz de cada **principio** y escribe en una línea qué significa
+   para ti. Claude lo lee y en Hoy sale debajo del título.
+
+Para cambiar cualquier cosa después, toca el lápiz de cada hábito. Desde ahí
+puedes cambiar el tipo, los minutos, la frecuencia y la prioridad, pausarlo o
+borrarlo.
+
+### 6.2 Conecta a Claude con tu suscripción (10 min, una sola vez)
+
+Los pasos están también dentro de la app, en **Ajustes → Claude planifica tu
+día**, con botones para copiar cada cosa.
+
+1. **En el ordenador**, instala Claude Code:
+   - En Windows, abre **PowerShell** y pega
+     `irm https://claude.ai/install.ps1 | iex`.
+   - En Mac, abre Terminal y pega `curl -fsSL https://claude.ai/install.sh | bash`.
+2. Cierra la ventana, ábrela otra vez y escribe `claude setup-token`.
+   - Se abre el navegador: entra con tu cuenta de Claude.
+   - Al terminar, la ventana te enseña un **token** largo. Cópialo: solo sale
+     esa vez y dura un año.
+3. **GitHub** → tu repositorio → **Settings → Secrets and
+   variables → Actions → New repository secret**:
+   - Nombre: `CLAUDE_CODE_OAUTH_TOKEN`
+   - Valor: el token.
+4. **En la app**: ve a **Ajustes → Claude planifica tu día → Crear llave → Copiar
+   llave**. En GitHub crea otro secreto:
+   - Nombre: `PLANNER_KEY`
+   - Valor: la llave, que empieza por `tcp_`.
+5. La variable `API_URL` ya la tienes de la Tanda 3.
+6. **Pruébalo:**
+   - Ve a **GitHub → Actions → «Plan del día con Claude» → Run workflow**.
+   - Marca «Rehacer el plan de hoy» y pulsa el botón verde.
+   - En 2–4 minutos sale el tic verde. Abre **Hoy**: verás **✦ Claude**, su
+     nota con el foco del día y la razón de cada hábito.
+
+Desde entonces funciona solo:
+
+- **Cada mañana** a las 7:05 (6:05 en invierno), Claude decide el plan del día.
+- **Cada 2 horas de día**, mira si hay algún plan de misiones en cola. Si no
+  hay nada que hacer, termina en segundos sin gastar nada.
+
+Qué conviene saber:
+
+- **Gasta tu plan de Claude, no dinero aparte.** Un plan del día usa poco
+  (con Sonnet, que es el que va por defecto). Para usar Opus, crea en GitHub
+  la **variable** `PLANNER_MODEL` con el valor `opus`. Gasta más de tu plan.
+- **Si un día falla** (límite de uso, servidor dormido…), Hoy usa el plan
+  automático. Nunca queda vacío.
+- **Nunca se pasa de tu tiempo.** El servidor comprueba el plan de Claude:
+  - Si se pasa, lo que sobra va a «Si te da tiempo».
+  - Si olvida algo imprescindible y diario, lo pone igualmente.
+- **Privacidad:**
+  - Claude recibe tus hábitos y lo que llevas de semana, tu tiempo, lo que
+    quieres conseguir, tus objetivos, valores, habilidades, sueño y entrenos.
+  - Nunca recibe tus cartas, escritos, notas, frases ni amigos.
+  - Se ejecuta sin herramientas: solo puede responder.
+  - Los registros de GitHub no muestran tus datos, aunque el repositorio
+    fuera público.
+- **Planes de misiones a medida:**
+  - En Habilidades, **Diseñar a medida** pone el plan **en cola**. Claude lo
+    hace en su siguiente ronda, como mucho en 2 horas. Para no esperar,
+    **Run workflow** en GitHub.
+  - Mientras tanto, sigues con el plan de su tipo.
+- **Para desconectarlo**, ve a **Ajustes → Claude planifica tu día →** papelera
+  de la llave. Desde el día siguiente, Hoy vuelve al plan automático. Para
+  quitar ya el plan de hoy, usa «Descartar el plan de Claude de hoy». **Para
+  cambiar el token**, repite el paso 2 y sustituye el secreto en GitHub.
+
+### 6.3 Cómo se usa
+
+- Por la mañana, **Hoy** te enseña:
+  - la nota de Claude;
+  - el principio del día;
+  - lo que toca, en orden: lo marcas al hacerlo;
+  - las **métricas**: el botón **+** suma lo de siempre (un vaso, 20 g de
+    proteína…). Toca la cifra para escribirla.
+- **Si te da tiempo**: lo que no cabe hoy. **Otros hábitos**: los que no tocan
+  hoy, por si haces alguno.
+- **Por la noche**, la tarjeta del principio pregunta **«¿Lo viviste hoy?»**:
+  sí, a medias o no. No hay racha: es solo para mirarte con honestidad.
+- Los hábitos de «N veces por semana» enseñan «2/4 semana», y su racha cuenta
+  semanas cumplidas, no días.
+
+---
+
+## Tanda 7 — Privacidad: repositorio público y app solo para ti (15 min)
+
+Ya está bien, no hay que tocar nada de esto:
+
+- **Ninguna clave tuya ha estado nunca en el repositorio.** Revisado todo el
+  historial: no hay `.env`, contraseñas, tokens ni exportaciones de datos.
+- **El token de tu suscripción de Claude y la llave del planificador** son
+  *secretos* de GitHub:
+  - No se ven en el repositorio ni en los registros.
+  - No pasan a las copias (*forks*) que otros hagan.
+  - Los flujos solo se lanzan por horario o desde tu cuenta, nunca por un
+    *pull request* ajeno.
+- **Los registros de GitHub Actions**, que en un repositorio público ve
+  cualquiera, solo muestran si cada paso salió bien o mal.
+- **La clave «anon» de Supabase** viaja en la web: es pública por diseño. Las
+  tablas están cerradas a ella con RLS (Tanda 1, paso 7).
+- **Cada cuenta solo ve sus datos.** Con tu suscripción de Claude solo se
+  planifica tu cuenta: la llave del planificador es tuya y vive solo en tu
+  GitHub.
+
+### 7.1 Que tu correo no salga en los commits (2 min)
+
+Cada commit lleva el correo del autor, y cualquiera puede verlo.
+
+1. Ve a **GitHub → tu foto → Settings → Emails**:
+   - Marca **Keep my email addresses private**.
+   - Marca también **Block command line pushes that expose my email**.
+   - Copia la dirección que aparece, del tipo `12345678+usuario@users.noreply.github.com`.
+2. En **GitHub Desktop → File → Options → Git**, en **Email**, elige esa
+   dirección y pulsa **Save**.
+
+Los commits que ya están subidos conservan el correo de antes. Cambiarlo
+obliga a reescribir todo el historial; si quieres hacerlo, pídelo aparte.
+
+### 7.2 Sube esta versión sustituyendo la subida anterior (5 min)
+
+La subida anterior llevaba, en esta guía y en los ejemplos del código, datos
+de tus hábitos. Lo mejor es **sustituir ese commit**, no añadir otro encima:
+así no se quedan en el historial.
+
+1. Descomprime el zip y copia en tu repositorio, sustituyendo lo que haya:
+   - las carpetas `backend`, `frontend` y `.github`;
+   - los archivos `.gitignore` (nuevo, empieza por punto), `ACTUALIZAR-2026-10.md`,
+     `README.md` y `render.yaml`.
+2. En **GitHub Desktop → History**, haz clic derecho en el último commit
+   («IA para planificación añadida») → **Amend commit**.
+   - Sale el aviso «Amend Will Require Force Push», porque el commit ya está
+     subido: pulsa **Begin Amend**.
+   - En **Changes** pulsa **Amend last commit**.
+3. Arriba aparece **Force push origin**: púlsalo y confirma.
+4. Render y Vercel vuelven a desplegar solos con la versión limpia.
+
+> Si GitHub Desktop no te ofrece «Amend commit», haz un commit normal
+> («Privacidad») y **Push origin**. La versión actual queda limpia, pero la
+> anterior seguiría visible en el historial.
+>
+> Tras forzar la subida, el commit viejo puede seguir abriéndose un tiempo si
+> alguien tiene su enlace exacto. GitHub lo borra del todo si se lo pides con
+> su formulario de datos sensibles (*Remove sensitive data*).
+
+### 7.3 La app, solo para ti (5 min)
+
+Hoy cualquiera que encuentre la web puede pulsar «Crear cuenta» y usar tu
+servidor y la IA del servidor (`ANTHROPIC_API_KEY`), si la tienes.
+
+1. **Render** → tu servicio → **Environment** → **Add Environment Variable**:
+   - Nombre: `USUARIOS_PERMITIDOS`
+   - Valor: el correo con el que entras en la app. Si quieres dar acceso a
+     alguien más, añade su correo separado por una coma.
+   - Pulsa **Save**. Render vuelve a desplegar.
+
+   Desde entonces, cualquier otra cuenta ve «Esta app es privada» y no puede
+   leer, guardar ni gastar nada.
+2. **Supabase** → **Authentication** → **Sign In / Providers** (en algunos
+   paneles está en los ajustes de Authentication) → desactiva **Allow new
+   users to sign up** → **Save**. Así ya nadie puede crear cuentas
+   nuevas.
+3. Ve a **Supabase → Authentication → Users**. Si ves alguna cuenta que no es
+   tuya, bórrala.
+4. Comprueba que todo sigue bien:
+   - Abre la app con tu cuenta: debe funcionar igual.
+   - En otra ventana privada, intenta «Crear cuenta»: Supabase debe decir que
+     el registro está cerrado.
+
+### 7.4 Que GitHub vigile por ti (1 min)
+
+Ve a **GitHub → tu repositorio → Settings → Advanced Security** (en algunas
+cuentas se llama **Code security**) y activa:
+
+- **Secret Protection**;
+- **Push protection**.
+
+Si algún día se cuela una clave en un commit, GitHub la bloquea antes de
+subirla o te avisa.
+
+### 7.5 Regla de oro
+
+Tus archivos personales nunca van dentro de la carpeta del repositorio:
+
+- las exportaciones `tu-cuaderno-….json`;
+- `mi-configuracion-habitos.json`;
+- cualquier `.env`.
+
+El `.gitignore` ya los bloquea, pero guárdalos en otra carpeta igualmente.
+
+---
+
 ## Opcional — que no se duerma nunca
 
 Con la caché, abrir la app ya es instantáneo aunque el servidor esté dormido.
@@ -333,3 +616,8 @@ unas 744 de las 750 horas gratis del mes:
 | Widget: «Abre Scriptable y ejecuta…» | No tiene llave. | Ejecuta el script en Scriptable y pega la llave. |
 | Widget con datos viejos | El servidor estaba dormido cuando el widget miró. | Se actualiza solo a los 30 min. El widget guarda lo último que vio. |
 | Render: el deploy falla en «Migración» | No pudo añadir una columna. | Render mantiene la versión anterior en marcha. Mira el log y Rollback si hace falta. |
+| Hoy sigue diciendo «Automático» | Claude aún no ha hecho el plan de hoy, o falló. | **GitHub → Actions → Plan del día con Claude**: abre la última ejecución. Si está en rojo, el mensaje dice qué falta (el token, la llave o `API_URL`). Si dice «Nada que planificar», pulsa Run workflow con «Rehacer». |
+| Actions: «Claude no acepta el token» | El token caducó o se copió mal. | Repite `claude setup-token` y cambia el secreto `CLAUDE_CODE_OAUTH_TOKEN`. |
+| Actions: «La API no acepta la llave del planificador» | La llave se revocó o caducó (dura un año). | Ajustes → Claude planifica tu día → Crear llave, y cambia el secreto `PLANNER_KEY`. |
+| La app dice «Esta app es privada» al entrar con tu cuenta | El correo de `USUARIOS_PERMITIDOS` no es el de tu cuenta. | Render → Environment: corrígelo. Debe ser el mismo con el que entras en la app. |
+| «Pegar configuración» dice «no coinciden» | Ese hábito tiene otro nombre en tu app. | Se salta sin tocar nada. Cámbialo a mano con su lápiz. |

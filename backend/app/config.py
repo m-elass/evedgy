@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     # habilidades). Se puede cambiar desde Render sin tocar el código.
     AI_MODELO: str = "claude-sonnet-5-5"
 
+    # App privada: correos de las cuentas que pueden usar la API, separados por
+    # comas (p. ej. «tu@correo.com»). Vacío = cualquier cuenta registrada.
+    # Con esto, aunque alguien se cree una cuenta, el servidor no le deja usar
+    # nada: ni tus recursos ni la IA. Se pone en Render → Environment.
+    USUARIOS_PERMITIDOS: str = ""
+
     # Dominios del frontend autorizados a llamar a la API (separados por comas).
     CORS_ORIGINS: str = "http://localhost:5173"
 

@@ -5,7 +5,9 @@
  *  - saludo según la hora y la frase del día (de la estrella Frases)
  *  - la carta de hoy: si ya está sellada o aún te espera, y tu racha
  *  - las misiones diarias del Sistema (habilidades)
- *  - hábitos de hoy, que se marcan al instante
+ *  - «Tu plan de hoy»: lo que toca hoy (lo decide Claude cada mañana o el plan
+ *    automático), con el principio del día, las métricas y «si te da tiempo»
+ *  - las tareas pendientes de las secciones de Tareas puestas «En Hoy»
  *  - un destello del pasado y, el fin de semana, el resumen de la semana
  *
  * Todo llega en UNA petición (/today) y se guarda en el móvil: al abrir la
@@ -14,12 +16,13 @@
 import React, { useState } from "react";
 import { Check, Quote, Sparkles, Feather, ChevronRight, RefreshCw, Swords } from "lucide-react";
 import { api, ymd, lunes, diaDeCarta } from "../lib/api";
-import { useApi, useFijarCache, useRefrescar } from "../lib/useApi";
+import { useApi, useRefrescar } from "../lib/useApi";
 import { avisar } from "../lib/toast";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD, GLOW } from "../lib/theme";
 import { SectionHeader } from "../components/ui";
 import { HelpDot } from "../components/Help";
-import { SelloAlado, WaterDivider, HydroFrame, EstrellaAlada, pedirCeremonia } from "../components/ornamentos";
+import { SelloAlado, WaterDivider, HydroFrame, pedirCeremonia } from "../components/ornamentos";
+import PlanDeHoy from "../components/PlanDeHoy";
 
 function greeting() {
   const h = new Date().getHours();
@@ -36,19 +39,16 @@ export default function Today({ onNavigate }) {
   const { data: resumen } = useApi("summary", api.summaryWeek, {
     params: [ymd(lunes())], enabled: finde, staleTime: 6 * 3600 * 1000,
   });
-  const [pend, setPend] = useState({});        // marcas en vuelo (optimistas)
+  // Tareas marcadas aquí en esta visita: siguen a la vista, tachadas, aunque Hoy se recargue
+  const [tareasHechas, setTareasHechas] = useState({});   // id → { content, seccion }
   const [qi, setQi] = useState(0);             // qué frase del día se muestra
   // ornamento: la ceremonia de entrada se dibuja una sola vez al entrar en Hoy
   const [retraso] = useState(() => pedirCeremonia("today"));   // null = sin ceremonia
   const ceremonia = retraso !== null;
-  const fijar = useFijarCache();
   const refrescar = useRefrescar();
 
   if (gate) return (<><SectionHeader kicker="Tu cuaderno" title="Hoy" />{gate}</>);
 
-  const habits = data.habits || [];
-  const hecho = (h) => (pend[h.id] !== undefined ? pend[h.id] : h.done_today);
-  const doneCount = habits.filter(hecho).length;
   const frases = data.quotes || [];
   const frase = frases.length ? frases[qi % frases.length] : null;
   const carta = data.letter || { written: false, streak: 0 };
@@ -57,22 +57,24 @@ export default function Today({ onNavigate }) {
   // La carta se escribe por la noche; de madrugada aún cuenta la de ayer
   const cartaPendiente = !carta.written && diaDeCarta() === hoy;
 
-  async function toggleHabit(h) {
-    if (pend[h.id] !== undefined) return;
-    const nuevo = !h.done_today;
-    setPend((p) => ({ ...p, [h.id]: nuevo }));
+  async function completarTarea(t, seccion) {
+    const nuevo = !tareasHechas[t.id];
+    setTareasHechas((p) => {
+      const r = { ...p };
+      if (nuevo) r[t.id] = { content: t.content, seccion }; else delete r[t.id];
+      return r;
+    });
     if (navigator.vibrate) navigator.vibrate(12);
     try {
-      await api.completeDailyTask(h.id, { date: hoy, done: nuevo });
-      // Confirmado por el servidor: ahora sí se guarda en la memoria del móvil
-      fijar("today", [hoy], (d) => d && {
-        ...d, habits: d.habits.map((x) => (x.id === h.id ? { ...x, done_today: nuevo } : x)),
-      });
-      refrescar("today", "daily");
+      await api.updateRandomTask(t.id, { done: nuevo });
+      refrescar("tasks");
     } catch (e) {
-      avisar(e?.humano || "No se pudo marcar el hábito.");
-    } finally {
-      setPend((p) => { const r = { ...p }; delete r[h.id]; return r; });
+      setTareasHechas((p) => {
+        const r = { ...p };
+        if (nuevo) delete r[t.id]; else r[t.id] = { content: t.content, seccion };
+        return r;
+      });
+      avisar(e?.humano || "No se pudo marcar la tarea.");
     }
   }
 
@@ -183,42 +185,57 @@ export default function Today({ onNavigate }) {
         </button>
       )}
 
-      {/* Hábitos de hoy */}
-      <div style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase",
-        marginBottom: 10, fontWeight: 600, background: GRAD.gold, WebkitBackgroundClip: "text",
-        backgroundClip: "text", color: "transparent", width: "fit-content", position: "relative" }}>
-        Hábitos de hoy · {doneCount}/{habits.length}
-        {/* estado especial: todos hechos → una estrella líquida con alas */}
-        {habits.length > 0 && doneCount === habits.length && <EstrellaAlada size={52} className="orn-completo" />}
-      </div>
-      {habits.length === 0 ? (
-        <button onClick={() => onNavigate?.("daily")} style={emptyCard}>
-          Aún no tienes hábitos. Crea el primero →
-        </button>
-      ) : (
-        <div style={{ background: C.paper, borderRadius: 14, border: `1px solid ${C.paperEdge}`, padding: "4px 16px", marginBottom: 22 }}>
-          {habits.map((t, i) => {
-            const ok = hecho(t);
-            return (
-              <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 0",
-                borderBottom: i < habits.length - 1 ? `1px solid ${C.paperEdge}` : "none" }}>
-                <button onClick={() => toggleHabit(t)} aria-label={ok ? "Desmarcar" : "Marcar hecho"} data-estrella={ok ? "hecho" : "marcar"}
-                  style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, border: "none", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    background: ok ? GRAD.gold : "transparent", boxShadow: ok ? GLOW.gold : "none",
-                    outline: ok ? "none" : `2px solid ${C.sepia}`, outlineOffset: -2,
-                    opacity: pend[t.id] !== undefined ? 0.75 : 1, transition: "background .2s, box-shadow .2s" }}>
-                  {ok && <Check size={15} color={C.cream} strokeWidth={3} />}
-                </button>
-                <span style={{ flex: 1, fontFamily: FONT_BODY, fontSize: 15, color: C.sepiaInk }}>{t.title}</span>
-                {t.streak > 1 && (
-                  <span style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.rust, fontWeight: 600 }}>🔥 {t.streak}</span>
-                )}
+      {/* Tu plan de hoy: hábitos, objetivos, métricas y el principio del día */}
+      <PlanDeHoy data={data} hoy={hoy} onNavigate={onNavigate} />
+
+      {/* Tareas de las secciones puestas «En Hoy» (Tareas → Gestionar secciones → ☀) */}
+      {(data.task_sections || []).map((s) => {
+        const vistas = new Set(s.tasks.map((t) => t.id));
+        const extra = Object.entries(tareasHechas)
+          .filter(([id, v]) => v.seccion === s.id && !vistas.has(Number(id)))
+          .map(([id, v]) => ({ id: Number(id), content: v.content }));
+        const lista = [...s.tasks, ...extra];
+        const pendientes = lista.filter((t) => !tareasHechas[t.id]).length;
+        return (
+          <div key={"sec-" + s.id} style={{ marginBottom: 22 }}>
+            <button onClick={() => onNavigate?.("todo")} style={{ display: "flex", alignItems: "center", gap: 8,
+              background: "none", border: "none", padding: 0, marginBottom: 10, cursor: "pointer" }}>
+              <span style={{ width: 9, height: 9, borderRadius: 3, background: s.color, flexShrink: 0,
+                boxShadow: `0 0 8px ${s.color}` }} />
+              <span style={{ fontFamily: FONT_BODY, fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase",
+                fontWeight: 600, background: GRAD.gold, WebkitBackgroundClip: "text", backgroundClip: "text",
+                color: "transparent" }}>{s.name} · {pendientes} {pendientes === 1 ? "pendiente" : "pendientes"}</span>
+              <ChevronRight size={13} color={C.sepia} />
+            </button>
+            {lista.length === 0 ? (
+              <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: C.sepia, padding: "2px 2px 4px" }}>
+                Nada pendiente aquí. ✓
               </div>
-            );
-          })}
-        </div>
-      )}
+            ) : (
+              <div style={{ background: C.paper, borderRadius: 14, border: `1px solid ${C.paperEdge}`, padding: "4px 16px" }}>
+                {lista.map((t, i) => {
+                  const ok = !!tareasHechas[t.id];
+                  return (
+                    <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0",
+                      borderBottom: i < lista.length - 1 ? `1px solid ${C.paperEdge}` : "none" }}>
+                      <button onClick={() => completarTarea(t, s.id)} aria-label={ok ? "Marcar pendiente" : "Completar tarea"}
+                        data-estrella={ok ? "hecho" : "marcar"}
+                        style={{ width: 24, height: 24, borderRadius: 8, flexShrink: 0, border: "none", cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          background: ok ? GRAD.gold : "transparent", boxShadow: ok ? GLOW.gold : "none",
+                          outline: ok ? "none" : `2px solid ${C.sepia}`, outlineOffset: -2, transition: "background .2s, box-shadow .2s" }}>
+                        {ok && <Check size={14} color={C.cream} strokeWidth={3} />}
+                      </button>
+                      <span style={{ flex: 1, fontFamily: FONT_BODY, fontSize: 14.5, color: C.sepiaInk,
+                        textDecoration: ok ? "line-through" : "none", opacity: ok ? 0.55 : 1 }}>{t.content}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* Destello del pasado */}
       {data.flashback && (

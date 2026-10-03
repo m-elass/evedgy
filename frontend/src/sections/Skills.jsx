@@ -374,6 +374,9 @@ function Habilidad({ s, d, hoy, accion }) {
       {s.plan.generating && (
         <div className="sis-gen"><span className="sis-spin" /> El Sistema está diseñando un plan a medida…</div>
       )}
+      {s.plan.queued && (
+        <div className="sis-gen"><Wand2 size={13} /> En cola: Claude diseñará su plan a medida en su próxima ronda.</div>
+      )}
       {abierta && <Detalle s={s} d={d} hoy={hoy} accion={accion} />}
     </div>
   );
@@ -570,6 +573,7 @@ function Plan({ s, d, accion }) {
   const [ocupado, setOcupado] = useState(false);
   async function run(fn) { setOcupado(true); await accion(fn, "No se pudo preparar el plan."); setOcupado(false); }
   const texto = p.generating ? "El Sistema está diseñando un plan a medida para esta habilidad…"
+    : p.queued ? "En cola: Claude lo diseñará con tu suscripción en su próxima ronda (cada 2 horas de día, o al lanzarlo en GitHub → Actions). Mientras, sigues con el plan de su tipo."
     : p.source === "ia" ? `Diseñado a medida para «${s.name}».`
       : p.category === "general" ? "Plan general de práctica deliberada."
         : `Plan preparado para ${p.category_label.toLowerCase()}.`;
@@ -579,14 +583,19 @@ function Plan({ s, d, accion }) {
       <p>{texto}{p.failed && !p.generating ? " No se pudo preparar el plan a medida, así que sigues con este." : ""}</p>
       {!p.generating && (
         <div className="sis-m-acciones">
-          {d.ai.enabled && (
+          {d.ai.enabled && !p.queued && (
             <button className="sis-btn sec" disabled={ocupado} onClick={() => run(() => api.makePlan(s.id))}>
               <Wand2 size={14} /> {p.source === "ia" ? "Rehacer a medida" : "Diseñar a medida"}
             </button>
           )}
-          {p.source === "ia" && (
+          {p.source === "ia" && !p.queued && (
             <button className="sis-link" disabled={ocupado} onClick={() => run(() => api.dropPlan(s.id))}>
               Volver al plan de su tipo
+            </button>
+          )}
+          {p.queued && (
+            <button className="sis-link" disabled={ocupado} onClick={() => run(() => api.dropPlan(s.id))}>
+              Cancelar
             </button>
           )}
         </div>
@@ -692,7 +701,9 @@ function NuevaHabilidad({ d, onListo, onCancelar }) {
           <span>Lo cumplo de verdad: sé hacer lo que pide este rango.</span>
         </label>
       )}
-      {d.ai.enabled && <p className="sis-nota"><Wand2 size={12} /> El Sistema diseñará un plan de misiones a medida para esta habilidad.</p>}
+      {d.ai.enabled && <p className="sis-nota"><Wand2 size={12} /> {d.ai.via === "claude"
+        ? "Claude diseñará un plan de misiones a medida para esta habilidad (con tu suscripción, en su próxima ronda)."
+        : "El Sistema diseñará un plan de misiones a medida para esta habilidad."}</p>}
 
       <div className="sis-m-acciones" style={{ marginTop: 12 }}>
         <button className="sis-btn ok" onClick={crear} disabled={!valido || ocupado}>

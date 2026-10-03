@@ -18,7 +18,7 @@ se añaden copiando este mismo patrón.
 """
 
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 
 # ── Ejercicios ────────────────────────────────────────────
@@ -114,8 +114,54 @@ class SessionCreatedOut(SessionOut):
 
 # ── Hábitos diarios y sus completados ─────────────────────
 
+TIPOS_HABITO = ("habito", "bloque", "metrica", "principio")
+
+
 class DailyTaskCreate(BaseModel):
-    title: str
+    """Un hábito nuevo. Solo el título es obligatorio; lo demás tiene valores por defecto."""
+    title: str = Field(..., min_length=1, max_length=120)
+    kind: str = Field("habito", pattern="^(habito|bloque|metrica|principio)$")
+    minutes: int = Field(0, ge=0, le=720)
+    per_week: int = Field(7, ge=1, le=7)
+    days: list[int] = Field(default_factory=list, max_length=7)
+    priority: int = Field(2, ge=1, le=3)
+    target: float | None = Field(None, ge=0, le=1_000_000)
+    unit: str = Field("", max_length=16)
+    step: float | None = Field(None, gt=0, le=1_000_000)
+    link: str = Field("", pattern="^(|entreno|sueno)$")
+    description: str = Field("", max_length=600)
+
+    @field_validator("days")
+    @classmethod
+    def _dias(cls, v):
+        if any(d < 0 or d > 6 for d in v):
+            raise ValueError("los días van de 0 (lunes) a 6 (domingo)")
+        return sorted(set(v))
+
+
+class DailyTaskUpdate(BaseModel):
+    """Cambiar un hábito: solo se tocan los campos que llegan."""
+    title: str | None = Field(None, min_length=1, max_length=120)
+    kind: str | None = Field(None, pattern="^(habito|bloque|metrica|principio)$")
+    minutes: int | None = Field(None, ge=0, le=720)
+    per_week: int | None = Field(None, ge=1, le=7)
+    days: list[int] | None = Field(None, max_length=7)
+    priority: int | None = Field(None, ge=1, le=3)
+    target: float | None = Field(None, ge=0, le=1_000_000)
+    unit: str | None = Field(None, max_length=16)
+    step: float | None = Field(None, gt=0, le=1_000_000)
+    link: str | None = Field(None, pattern="^(|entreno|sueno)$")
+    description: str | None = Field(None, max_length=600)
+    active: bool | None = None
+
+    @field_validator("days")
+    @classmethod
+    def _dias(cls, v):
+        if v is None:
+            return v
+        if any(d < 0 or d > 6 for d in v):
+            raise ValueError("los días van de 0 (lunes) a 6 (domingo)")
+        return sorted(set(v))
 
 
 class DailyTaskOut(BaseModel):
@@ -129,6 +175,29 @@ class DailyTaskTodayOut(DailyTaskOut):
     """Un hábito con su estado de hoy y su racha, calculados en el servidor."""
     done_today: bool
     streak: int
+    kind: str = "habito"
+    minutes: int = 0
+    per_week: int = 7
+    days: list[int] = []
+    priority: int = 2
+    target: float | None = None
+    unit: str = ""
+    step: float | None = None
+    link: str = ""
+    description: str = ""
+    value_today: float | None = None
+    week_done: int = 0
+    week_goal: int = 7
+    streak_unit: str = "dias"
+
+
+class ValorIn(BaseModel):
+    """La cifra de una métrica (o la respuesta a un principio) en una fecha.
+    `value` la fija; `add` la suma a lo que ya hubiera; value=null la borra."""
+    date: date_type
+    value: float | None = Field(None, ge=0, le=1_000_000)
+    add: float | None = Field(None, ge=-1_000_000, le=1_000_000)
+    clear: bool = False
 
 
 class CompletionCreate(BaseModel):
@@ -181,6 +250,7 @@ class TaskSectionUpdate(BaseModel):
     name: str | None = None
     color: str | None = None
     order: int | None = None
+    in_today: bool | None = None     # mostrar sus tareas pendientes en Hoy
 
 
 class TaskSectionOut(BaseModel):
@@ -188,7 +258,13 @@ class TaskSectionOut(BaseModel):
     name: str
     color: str
     order: int
+    in_today: bool = False
     model_config = {"from_attributes": True}
+
+    @field_validator("in_today", mode="before")
+    @classmethod
+    def _sin_nulos(cls, v):
+        return bool(v)
 
 
 # ── Notas (destellos intelectuales) ───────────────────────

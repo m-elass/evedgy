@@ -24,7 +24,8 @@ export const HELP = {
     title: "Hoy",
     lead: "La portada de tu día: lo único que necesitas ver al abrir la app. Reúne lo que tienes pendiente hoy y un recuerdo de tu propio pasado, para que empieces con contexto y no desde cero.",
     points: [
-      "Los hábitos de hoy se marcan aquí mismo, sin entrar en su sección.",
+      "«Tu plan de hoy» enseña lo que toca hoy (lo decide Claude cada mañana o el plan automático) y se marca aquí mismo: hábitos, objetivos del día, métricas y, por la noche, el principio del día.",
+      "Las secciones de Tareas que pongas «En Hoy» (Tareas → Gestionar secciones → ☀ En Hoy) muestran aquí sus tareas pendientes, y también se marcan desde aquí.",
       "El resumen de tu semana se genera con tus datos reales: entrenos, hábitos cumplidos y horas de sueño.",
       "«Un destello del pasado» rescata una nota tuya de otro día al azar. No es decoración: leerte a ti mismo con distancia es la forma más rápida de ver si has cambiado.",
     ],
@@ -103,13 +104,28 @@ export const HELP = {
   },
   daily: {
     title: "Hábitos",
-    lead: "Las cosas pequeñas que quieres hacer todos los días. La app no te juzga si fallas: solo cuenta, y contar es lo que hace visible la constancia.",
+    lead: "Lo que sostiene tus días, separado en cuatro tipos, porque no todo es igual: no todo dura lo mismo ni hace falta cada día.",
     points: [
-      "Cada hábito lleva su racha: los días seguidos que lo has cumplido.",
-      "Los hábitos se marcan también desde la pantalla Hoy, para no tener que entrar aquí a diario.",
-      "El historial alimenta el tapiz: cada día cumplido hace brillar un hilo de tu año.",
+      "Hábito: una práctica con su tiempo (meditar 10 min). Objetivo del día: un bloque largo hacia una meta (estudiar 90 min).",
+      "Cada uno lleva sus minutos, cuántas veces a la semana (o qué días fijos) y su prioridad: imprescindible, importante o si da tiempo.",
+      "Métrica: una cifra que vas sumando con botones rápidos (agua, proteína, pasos) o escribiéndola; la de sueño lee y apunta en Sueño.",
+      "Principio: algo que marca tus días, como «primero lo importante». No se marca: sale uno cada día en Hoy y por la noche te pregunta si lo viviste (sí, a medias o no), sin racha.",
+      "La racha de un hábito diario cuenta días; la de uno de «N veces por semana», semanas cumplidas.",
+      "Arriba pones el tiempo que tienes cada día de la semana y lo que quieres conseguir: con eso se decide «Tu plan de hoy».",
+      "«Pegar configuración» aplica de una vez una configuración sugerida (tipos, minutos, frecuencias…). Solo toca los hábitos cuyo nombre coincide y no borra tu historial.",
     ],
     note: "Una racha rota no borra el progreso anterior. El objetivo es la frecuencia a lo largo de meses, no una cadena perfecta.",
+  },
+  day_plan: {
+    title: "Tu plan de hoy",
+    lead: "Hoy no te enseña todos tus hábitos, sino los que tocan hoy, en orden y con su razón.",
+    points: [
+      "Si conectaste a Claude (Ajustes → «Claude planifica tu día»), lo decide Claude cada mañana con tu suscripción: mira lo que llevas esta semana, tus prioridades, tu tiempo de hoy y lo que quieres conseguir. Verás «✦ Claude» y su nota.",
+      "Si no, o si un día falla, lo hace el plan automático: lo diario e imprescindible primero, los días fijos el día que tocan y los de «N veces por semana» según lo que te falta y los días que quedan.",
+      "Nunca se pasa del tiempo que pusiste para ese día (descontando las misiones del Sistema): lo que no cabe queda en «Si te da tiempo».",
+      "En «Otros hábitos» están los que no tocan hoy, por si haces alguno igualmente.",
+      "El tiempo de cada día y lo que quieres conseguir se cambian en Hábitos, arriba del todo.",
+    ],
   },
   todo: {
     title: "Tareas",
@@ -127,6 +143,7 @@ export const HELP = {
       "Clasificar es opcional. Una tarea sin sección vive en «Sin clasificar» y funciona igual.",
       "Puedes clasificar tareas ya creadas: cada una lleva un selector para moverla de sección cuando quieras.",
       "Si borras una sección, sus tareas NO se borran: vuelven a «Sin clasificar».",
+      "«En Hoy» (el sol ☀) pone las tareas pendientes de esa sección también en la pantalla Hoy, para marcarlas allí sin entrar en Tareas. Se quita igual de fácil.",
     ],
     note: "Apuntar rápido no debería costarte decisiones. Primero sacas la tarea de la cabeza; ordenarla puede esperar.",
   },
@@ -470,6 +487,7 @@ export const HELP = {
     points: [
       "Las favoritas (★) aparecen el triple de a menudo.",
       "El ojo decide si una frase puede salir en el widget: las que solo quieras para ti, déjalas con el ojo tachado.",
+      "Hay un widget solo de frases, para la pantalla de bloqueo o la de inicio, que puede ir cambiando a lo largo del día y avisarte cada mañana con la frase del día: Ajustes → Widgets del móvil → Widget de Frases.",
       "En Hoy, «Otra» te enseña la siguiente sin cambiar la del día.",
     ],
   },

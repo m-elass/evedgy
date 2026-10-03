@@ -129,8 +129,12 @@ export const api = {
   // Hábitos diarios
   listDailyTasks: () => request("/daily-tasks"),
   createDailyTask: (data) => request("/daily-tasks", { method: "POST", body: data }),
+  updateDailyTask: (id, data) => request(`/daily-tasks/${id}`, { method: "PATCH", body: data }),
   deleteDailyTask: (id) => request(`/daily-tasks/${id}`, { method: "DELETE" }),
   completeDailyTask: (id, data) => request(`/daily-tasks/${id}/complete`, { method: "PUT", body: data }),
+  // métricas (value / add) y principios (1 · 0.5 · 0); clear=true lo borra
+  setHabitValue: (id, data) => request(`/daily-tasks/${id}/value`, { method: "PUT", body: data }),
+  importHabits: (data) => request("/daily-tasks/import", { method: "POST", body: data }),
   listCompletions: (id, params = {}) => {
     const q = new URLSearchParams(params).toString();
     return request(`/daily-tasks/${id}/completions${q ? `?${q}` : ""}`);
@@ -259,6 +263,7 @@ export const api = {
   // ── Agregados: una pantalla, una petición ──
   today: (date) => request(`/today?date=${date}`),
   dailyToday: (date) => request(`/daily-tasks/today?date=${date}`),
+  habitsAll: (date) => request(`/daily-tasks/today?date=${date}&all=1`),
   trainingWeek: (start) => request(`/training/week/${start}`),
   summaryWeek: (start) => request(`/summary/weeks/${start}`),
 
@@ -299,6 +304,13 @@ export const api = {
   updateQuest: (qid, data) => request(`/skill-board/quests/${qid}`, { method: "PATCH", body: data }),
   deleteQuest: (qid) => request(`/skill-board/quests/${qid}`, { method: "DELETE" }),
   taskToSkill: (taskId) => request(`/skill-board/from-task/${taskId}`, { method: "POST" }),
+
+  // ── Claude planifica tu día (con tu suscripción) ──
+  plannerSettings: () => request("/planner/settings"),
+  savePlannerSettings: (data) => request("/planner/settings", { method: "PUT", body: data }),
+  createPlannerKey: () => request("/planner/keys", { method: "POST" }),
+  revokePlannerKey: (id) => request(`/planner/keys/${id}`, { method: "DELETE" }),
+  discardDayPlan: (date) => request(`/planner/plan?date=${date}`, { method: "DELETE" }),
 
   // ── Widgets del móvil (llaves de solo lectura) ──
   widgetTokens: () => request("/widget/tokens"),

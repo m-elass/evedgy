@@ -1,7 +1,7 @@
 """
 fechas.py — EL «HOY» DEL USUARIO
 ────────────────────────────────
-El servidor vive en UTC; Mohamed, en Madrid. Entre medianoche y la 1-2 de la
+El servidor vive en UTC; tú, en Madrid. Entre medianoche y la 1-2 de la
 madrugada, «hoy» no es el mismo día para los dos. Por eso los endpoints que
 dependen del día reciben la FECHA LOCAL del móvil, y aquí se valida que sea
 razonable (como mucho un día de diferencia con el reloj del servidor).

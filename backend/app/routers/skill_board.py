@@ -413,7 +413,9 @@ def _tablero(db, user_id, hoy) -> dict:
     for f in fichas:
         atributos[f.stat if f.stat in atributos else "INT"] += f.prog["level"]
     mejor = max(fichas, key=lambda f: (f.prog["rank_index"], f.prog["level"]), default=None)
+    from app.routers.planner import claude_conectado
     ia = maestria.ia_disponible()
+    claude = claude_conectado(db, user_id)
     return {
         "date": hoy.isoformat(),
         "player": {
@@ -432,7 +434,8 @@ def _tablero(db, user_id, hoy) -> dict:
         "week": {"start": lunes.isoformat(), "days_left": 7 - hoy.weekday()},
         "trials": [_mision_json(m, por_id, cambiadas) for m in pruebas],
         "skills": [_habilidad_json(f, hoy, diaria_de.get(f.id)) for f in fichas],
-        "ai": {"enabled": ia, "remaining": ai_budget.restante(db, user_id)["restantes"] if ia else 0},
+        "ai": {"enabled": ia or claude, "via": "claude" if claude else ("api" if ia else None),
+               "remaining": ai_budget.restante(db, user_id)["restantes"] if ia and not claude else 0},
         "ranks": [{"rank": r.letra, "title": r.titulo, "hours": r.horas, "meaning": r.sentido,
                    "levels": [r.nivel_ini, r.nivel_fin]} for r in maestria.RANGOS],
         "categories": [{"id": k, "label": v} for k, v in maestria.CATEGORIAS.items()],
@@ -500,7 +503,23 @@ def _nueva_habilidad(db, user_id, nombre, descripcion="", stat="INT", minutos=15
 
 
 def _encargar_plan(db, user_id, s, tareas: BackgroundTasks, obligatorio=False) -> bool:
-    """Pide a la IA un plan a medida, en segundo plano. Sin IA o sin presupuesto, sigue la plantilla."""
+    """
+    Pide un plan a medida, en segundo plano. Si el usuario conectó a Claude
+    con su suscripción (Ajustes → Claude planifica tu día), queda EN COLA y lo
+    diseña Claude en su próxima ronda, gastando su plan y no la API del
+    servidor. Si no, la API (si está configurada). Sin ninguna, la plantilla.
+    """
+    from app.routers.planner import claude_conectado
+    if claude_conectado(db, user_id):
+        fila = s.plan
+        if fila is None:
+            fila = models.SkillPlan(skill_id=s.id, user_id=user_id)
+            db.add(fila)
+        fila.status = "cola"
+        fila.requested_at = _ahora()
+        fila.error = None
+        db.commit()
+        return True
     if not maestria.ia_disponible():
         if obligatorio:
             raise HTTPException(status_code=409,
@@ -610,18 +629,24 @@ def make_plan(sid: int, tareas: BackgroundTasks, db: Session = Depends(get_db),
               user_id: str = Depends(get_current_user_id)):
     """Plan a medida con IA (o rehacerlo). Se prepara en segundo plano: el tablero dice cuándo está."""
     s = _habilidad(db, user_id, sid)
-    if maestria.info_plan(s)["generating"]:
+    info = maestria.info_plan(s)
+    if info["generating"]:
         raise HTTPException(status_code=409, detail="El Sistema ya está preparando este plan.")
+    if info["queued"]:
+        raise HTTPException(status_code=409, detail="Este plan ya está en cola para Claude.")
     _encargar_plan(db, user_id, s, tareas, obligatorio=True)
-    return {"status": "generando"}
+    return {"status": "cola" if s.plan is not None and s.plan.status == "cola" else "generando"}
 
 
 @router.delete("/skills/{sid}/plan")
 def drop_plan(sid: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
-    """Volver al plan preparado para su tipo de habilidad."""
+    """Volver al plan preparado para su tipo de habilidad (o, si estaba en cola para rehacerlo, cancelar)."""
     s = _habilidad(db, user_id, sid)
     if s.plan is not None:
-        db.delete(s.plan)
+        if s.plan.status == "cola" and s.plan.content:
+            s.plan.status = "lista"            # se cancela el rehacer: sigue el plan a medida que ya tenía
+        else:
+            db.delete(s.plan)
         db.commit()
     return {"ok": True}
 

@@ -25,3 +25,6 @@ services:
         sync: false
       - key: CORS_ORIGINS      # se cambia en el Paso 5 por tu URL de Vercel
         value: http://localhost:5173
+      # App privada: correos con acceso, separados por comas (vacío = cualquier cuenta)
+      - key: USUARIOS_PERMITIDOS
+        sync: false

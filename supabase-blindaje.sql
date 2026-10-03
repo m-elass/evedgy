@@ -55,7 +55,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 -- COMPROBACIÓN — mira el resultado que aparece abajo
 --   tablas_sin_rls      debe ser 0
 --   permisos_publicos   debe ser 0
---   tablas_total        es el número de tablas de la app (36 en esta versión)
+--   tablas_total        es el número de tablas de la app (39 en esta versión)
 -- ═══════════════════════════════════════════════════════════════
 SELECT
   (SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND NOT rowsecurity) AS tablas_sin_rls,

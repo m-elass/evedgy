@@ -9,9 +9,11 @@
  *     clasificar" y funciona igual: apuntar rápido no debe costar decisiones.
  *   · Se puede clasificar en cualquier momento, también tareas viejas: cada
  *     tarea lleva un selector para moverla de sección con un toque.
+ *   · Una sección puede ponerse «En Hoy» (☀): sus tareas pendientes salen
+ *     también en la pantalla Hoy, donde se marcan sin entrar aquí.
  */
 import React, { useState } from "react";
-import { Check, Trash2, Tag, Plus, X, Pencil, ChevronRight } from "lucide-react";
+import { Check, Trash2, Tag, Plus, X, Pencil, ChevronRight, Sun } from "lucide-react";
 import { api } from "../lib/api";
 import { useApi, useRefrescar } from "../lib/useApi";
 import { avisar } from "../lib/toast";
@@ -44,7 +46,7 @@ export default function RandomTasks() {
   const { data: seccionesD, gate: gateS } = useApi("sections", api.listTaskSections);
   const secciones = seccionesD || [];
   const refrescar = useRefrescar();
-  const cargar = () => refrescar("tasks", "sections");
+  const cargar = () => refrescar("tasks", "sections", "today");
   const [texto, setTexto] = useState("");
   const [destino, setDestino] = useState("");        // sección de la tarea nueva
   const [gestionar, setGestionar] = useState(false); // panel de secciones
@@ -155,6 +157,7 @@ export default function RandomTasks() {
               <span style={{ fontFamily: FONT_BODY, fontSize: 11.5, letterSpacing: ".14em",
                 textTransform: "uppercase", fontWeight: 700,
                 color: g.id ? C.sepiaInk : C.sepia }}>{g.name}</span>
+              {g.in_today && <Sun size={12} color={C.olive} aria-label="Sale en Hoy" style={{ flexShrink: 0 }} />}
               <span style={{ fontFamily: FONT_BODY, fontSize: 11.5, color: C.sepia }}>
                 {pendientes} pendiente{pendientes === 1 ? "" : "s"}
                 {!abierta && g.tareas.length > pendientes ? ` · ${g.tareas.length} en total` : ""}
@@ -224,16 +227,29 @@ function PanelSecciones({ secciones, onCambio }) {
     setEditando(null); onCambio();
   }
   async function recolorear(id, c) { await api.updateTaskSection(id, { color: c }); onCambio(); }
+  async function alternarHoy(s) {
+    try {
+      await api.updateTaskSection(s.id, { in_today: !s.in_today });
+      onCambio();
+      avisar(s.in_today ? `«${s.name}» ya no sale en Hoy` : `Las tareas de «${s.name}» saldrán en Hoy ✓`, "ok");
+    } catch (e) { avisar(e?.humano || "No se pudo cambiar."); }
+  }
   async function borrar(id) { await api.deleteTaskSection(id); onCambio(); }
 
   return (
     <div style={{ background: C.paper, border: `1px solid ${C.paperEdge}`, borderRadius: 14,
       padding: "14px 15px", marginBottom: 20 }}>
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, color: C.sepiaInk,
-        fontWeight: 600, marginBottom: 10 }}>Tus secciones</div>
+        fontWeight: 600, marginBottom: 4 }}>Tus secciones</div>
+      {secciones.length > 0 && (
+        <p style={{ margin: "0 0 12px", fontFamily: FONT_BODY, fontSize: 12, color: C.sepia, lineHeight: 1.5 }}>
+          Pulsa <strong style={{ color: C.sepiaInk }}>☀ En Hoy</strong> para ver las tareas pendientes de una sección también en Hoy.
+        </p>
+      )}
 
       {secciones.map((s) => (
-        <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 9 }}>
+        <div key={s.id} style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           <span style={{ width: 12, height: 12, borderRadius: 3, background: s.color, flexShrink: 0 }} />
           {editando === s.id ? (
             <>
@@ -247,19 +263,29 @@ function PanelSecciones({ secciones, onCambio }) {
             </>
           ) : (
             <>
-              <span style={{ flex: 1, fontFamily: FONT_BODY, fontSize: 14, color: C.sepiaInk }}>{s.name}</span>
-              <div style={{ display: "flex", gap: 3 }}>
-                {PALETA.map((c) => (
-                  <button key={c} onClick={() => recolorear(s.id, c)} aria-label={`Color ${c}`}
-                    style={{ width: 14, height: 14, borderRadius: 4, background: c, cursor: "pointer",
-                      border: s.color === c ? `2px solid ${C.sepiaInk}` : "none", padding: 0 }} />
-                ))}
-              </div>
+              <span style={{ flex: 1, minWidth: 0, fontFamily: FONT_BODY, fontSize: 14, color: C.sepiaInk,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
+              {/* ☀ En Hoy: sus tareas pendientes salen también en la pantalla Hoy */}
+              <button onClick={() => alternarHoy(s)} aria-pressed={!!s.in_today}
+                aria-label={s.in_today ? `Quitar «${s.name}» de Hoy` : `Mostrar «${s.name}» en Hoy`} style={chipHoy(s.in_today)}>
+                <Sun size={13} /> En Hoy
+                {s.in_today && <Check size={12} strokeWidth={3} />}
+              </button>
               <button onClick={() => { setEditando(s.id); setNuevoNombre(s.name); }}
                 style={iconBtn} aria-label="Renombrar"><Pencil size={14} /></button>
               <button onClick={() => borrar(s.id)} style={iconBtn} aria-label="Borrar sección"><Trash2 size={14} /></button>
             </>
           )}
+        </div>
+        {editando !== s.id && (
+          <div style={{ display: "flex", gap: 6, margin: "7px 0 0 21px" }}>
+            {PALETA.map((c) => (
+              <button key={c} onClick={() => recolorear(s.id, c)} aria-label={`Color ${c}`}
+                style={{ width: 16, height: 16, borderRadius: 5, background: c, cursor: "pointer",
+                  border: s.color === c ? `2px solid ${C.sepiaInk}` : "none", padding: 0 }} />
+            ))}
+          </div>
+        )}
         </div>
       ))}
 
@@ -294,3 +320,7 @@ const selectStyle = {
   borderRadius: 8, padding: "8px 10px", fontFamily: FONT_BODY, fontSize: 12.5, cursor: "pointer",
 };
 const iconBtn = { background: "none", border: "none", color: C.sepia, cursor: "pointer", padding: 4 };
+const chipHoy = (activo) => ({ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0, cursor: "pointer",
+  padding: "5px 10px", borderRadius: 999, fontFamily: FONT_BODY, fontSize: 12, fontWeight: 600,
+  border: `1px solid ${activo ? C.olive : C.paperEdge}`, color: activo ? C.olive : C.sepia,
+  background: activo ? "rgba(232,184,75,.14)" : "transparent", transition: "background .2s, color .2s, border-color .2s" });

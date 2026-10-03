@@ -127,7 +127,7 @@ _HIJAS = {
     "value_checkins": ("value_id", "values"),
 }
 # No se exportan: credenciales, datos técnicos o contadores internos
-_SIN_EXPORTAR = {"widget_tokens", "push_subscriptions", "ai_usage", "server_keys"}
+_SIN_EXPORTAR = {"widget_tokens", "planner_keys", "push_subscriptions", "ai_usage", "server_keys"}
 
 
 def _filtro_de_usuario(modelo, tabla, user_id, mapa):

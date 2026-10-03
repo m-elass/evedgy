@@ -58,6 +58,7 @@ Cada parte tiene su `.env.example` como plantilla. Resumen:
 | backend/.env | `SUPABASE_JWT_SECRET` | verificar el login |
 | backend/.env | `CORS_ORIGINS` | qué webs pueden llamar a la API |
 | backend/.env | `ANTHROPIC_API_KEY` | generar temas con IA (opcional) |
+| backend/.env | `USUARIOS_PERMITIDOS` | correos con acceso: la app solo funciona para ellos (opcional) |
 | frontend/.env | `VITE_SUPABASE_URL` | conectar el login |
 | frontend/.env | `VITE_SUPABASE_ANON_KEY` | clave pública de Supabase |
 | frontend/.env | `VITE_API_URL` | dónde está el backend |

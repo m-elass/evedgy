@@ -1,0 +1,39 @@
+# ══════════════════════════════════════════════════════════════
+# Red de seguridad para TODO el repositorio (además de los .gitignore
+# de backend/ y frontend/). Este repositorio puede ser público: aquí no
+# debe entrar nada tuyo.
+# Los comentarios van siempre en su propia línea: al final de una regla
+# la estropean.
+# ══════════════════════════════════════════════════════════════
+
+# Claves y secretos (las plantillas .env.example sí se suben)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# Tus datos: exportaciones de la app y configuraciones personales
+tu-cuaderno-*.json
+mi-configuracion-*.json
+mis-datos*/
+
+# Bases de datos locales
+*.db
+*.sqlite3
+
+# Dependencias y compilados
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+.idea/

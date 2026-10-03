@@ -13,6 +13,9 @@ Supabase puede firmar los tokens de dos formas según la edad del proyecto:
 Este código acepta AMBOS. Si algo falla, el motivo exacto se escribe en los
 logs (Render → Logs).
 
+App privada: si la variable USUARIOS_PERMITIDOS tiene correos, solo esas
+cuentas pasan (las demás reciben 403 aunque su token sea bueno).
+
 Las claves públicas se guardan en memoria unas horas. Detalles que importan:
   · Un fallo al descargarlas NO se guarda: se reintenta (como mucho cada 30 s).
     Antes, una caída momentánea de Supabase dejaba el login roto hasta
@@ -113,6 +116,20 @@ def _decode(token: str):
     raise JWTError(f"algoritmo no soportado: {alg}")
 
 
+def permitidos() -> set:
+    """Los correos con acceso (en minúsculas). Vacío = cualquier cuenta."""
+    return {c.strip().lower() for c in (settings.USUARIOS_PERMITIDOS or "").split(",") if c.strip()}
+
+
+def acceso_permitido(payload: dict) -> bool:
+    """¿Puede esta cuenta usar la API? Se mira el correo que Supabase firma dentro del token."""
+    lista = permitidos()
+    if not lista:
+        return True
+    correo = str(payload.get("email") or "").strip().lower()
+    return bool(correo) and correo in lista
+
+
 def get_current_user_id(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> str:
@@ -129,4 +146,10 @@ def get_current_user_id(
             detail="Token inválido o caducado",
         )
     limitar_usuario(user_id)
+    if not acceso_permitido(payload):
+        logger.warning("Cuenta sin acceso (USUARIOS_PERMITIDOS): %s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta app es privada: tu cuenta no tiene acceso.",
+        )
     return user_id

@@ -219,11 +219,17 @@ def info_plan(skill, ahora=None) -> dict:
     pedido = _aware(fila.requested_at) if fila is not None else None
     generando = bool(fila is not None and fila.status == "generando" and pedido
                      and ahora - pedido < timedelta(minutes=5))
+    # en cola más de 30 h: nadie la está atendiendo (el flujo se paró): cuenta como fallo
+    en_cola = bool(fila is not None and fila.status == "cola" and pedido
+                   and ahora - pedido < timedelta(hours=30))
     return {
         "source": "ia" if fila is not None and fila.content else "plantilla",
         "generating": generando,
+        # en cola para Claude con la suscripción del usuario (lo diseña en su próxima ronda)
+        "queued": en_cola,
         # falló la IA, o se quedó a medias (p. ej. el servidor se reinició mientras la esperaba)
-        "failed": bool(fila is not None and not generando and fila.status in ("error", "generando")),
+        "failed": bool(fila is not None and not generando and not en_cola
+                       and fila.status in ("error", "generando", "cola")),
         "category": categoria_de(skill),
         "category_label": etiqueta(categoria_de(skill)),
     }
@@ -340,24 +346,30 @@ def _esquema() -> dict:
     }}
 
 
-def generar_plan_ia(nombre: str, objetivo: str, categoria: str, minutos_dia: int, rango_inicio: str) -> dict:
-    """Pide el plan a la IA y lo devuelve validado. Lanza excepción si algo falla."""
-    import anthropic
-    cliente = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=150.0, max_retries=1)
+def peticion_plan(nombre: str, objetivo: str, categoria: str, minutos_dia: int, rango_inicio: str,
+                  salida: str = "con la herramienta guardar_plan") -> str:
+    """El encargo del plan (lo mismo para la API que para Claude con la suscripción del usuario)."""
     tope = max(20, min(90, (minutos_dia or 15) * 2))
     r = RANGOS[indice(rango_inicio)]
     escala = " · ".join(f"{x.letra} {x.titulo} {x.horas:,} h".replace(",", ".") for x in RANGOS)
-    peticion = (
+    return (
         f"Habilidad: {nombre}\n"
         f"Lo que quiere conseguir: {objetivo.strip() or '(no lo ha dicho)'}\n"
         f"Tipo de habilidad (orientativo): {etiqueta(categoria)}\n"
         f"Tiempo diario que le dedica: {minutos_dia or 15} minutos\n"
         f"Rango de partida: {r.letra} ({r.titulo})\n\n"
         f"Escala de rangos del Sistema (horas de práctica de referencia): {escala}.\n\n"
-        "Diseña el plan completo para ESTA habilidad y guárdalo con la herramienta guardar_plan: las 6 "
+        f"Diseña el plan completo para ESTA habilidad y devuélvelo {salida}: las 6 "
         "competencias (E a S), 6 misiones diarias por banda (entre 10 y "
         f"{tope} minutos cada una), 3 misiones semanales por banda y las 5 pruebas de ascenso."
     )
+
+
+def generar_plan_ia(nombre: str, objetivo: str, categoria: str, minutos_dia: int, rango_inicio: str) -> dict:
+    """Pide el plan a la IA y lo devuelve validado. Lanza excepción si algo falla."""
+    import anthropic
+    cliente = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=150.0, max_retries=1)
+    peticion = peticion_plan(nombre, objetivo, categoria, minutos_dia, rango_inicio)
     msg = cliente.messages.create(
         model=settings.AI_MODELO,
         max_tokens=8000,

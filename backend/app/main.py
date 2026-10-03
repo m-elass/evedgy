@@ -30,7 +30,7 @@ from app.routers import (
     routine,
     exercises, sessions, daily_tasks, random_tasks,
     notes, documents, sleep, goals, theme, insights, deliberate, summary, profile, physique, social,
-    training, daily_letters, knowledge, quotes, skill_board, widget, push, today,
+    training, daily_letters, knowledge, quotes, skill_board, widget, push, today, planner,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -73,6 +73,6 @@ def health_check():
 for modulo in (exercises, sessions, daily_tasks, random_tasks, notes, documents, sleep,
                goals, theme, insights, deliberate, summary, profile, physique, social,
                routine, training, daily_letters, knowledge, quotes, skill_board, widget, push,
-               today):
+               today, planner):
     app.include_router(modulo.router)
 app.include_router(random_tasks.secciones)

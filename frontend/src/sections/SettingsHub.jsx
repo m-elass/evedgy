@@ -4,12 +4,14 @@
  * El centro de ajustes: todo lo que configura tu cuaderno, en un solo lugar.
  *   · Perfil: alias, peso corporal y sexo (lo que usan los rangos).
  *   · Privacidad: el opt-in de compartir rangos con amigos.
+ *   · Claude planifica tu día: la llave y los pasos para que Claude (con tu
+ *     suscripción) decida cada mañana el plan de Hoy y los planes de misiones.
  *   · Apariencia: acceso al taller de temas.
  *   · Tus datos: exportarlo TODO en un JSON. Tus datos son tuyos.
  * Se abre con el engranaje de la cabecera.
  */
 import React, { useEffect, useState } from "react";
-import { User, Eye, EyeOff, Palette, Download, Info, Bell, Smartphone } from "lucide-react";
+import { User, Eye, EyeOff, Palette, Download, Info, Bell, Smartphone, Sparkles } from "lucide-react";
 import { api, BASE } from "../lib/api";
 import { useApi, useRefrescar } from "../lib/useApi";
 import { C, FONT_DISPLAY, FONT_BODY, GRAD } from "../lib/theme";
@@ -19,6 +21,7 @@ import InstallApp from "../components/InstallApp";
 import Legal from "../components/Legal";
 import Avisos from "../components/Avisos";
 import WidgetKit from "../components/WidgetKit";
+import ClaudePlanner from "../components/ClaudePlanner";
 
 export default function SettingsHub({ onNavigate }) {
   const { data: profile, gate, reload: load } = useApi("profile", api.getProfile);
@@ -97,6 +100,11 @@ export default function SettingsHub({ onNavigate }) {
             {profile.share_ranks ? "Activado" : "Activar"}
           </button>
         </div>
+      </Block>
+
+      {/* Claude planifica tu día */}
+      <Block icon={<Sparkles size={15} color={C.olive} />} title="Claude planifica tu día">
+        <ClaudePlanner />
       </Block>
 
       {/* Aviso de la carta diaria */}

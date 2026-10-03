@@ -113,7 +113,7 @@ def create_section(data: schemas.TaskSectionCreate,
 def update_section(section_id: int, data: schemas.TaskSectionUpdate,
                    db: Session = Depends(get_db),
                    user_id: str = Depends(get_current_user_id)):
-    """Renombra, recolorea o reordena una sección."""
+    """Renombra, recolorea, reordena o pone/quita una sección en Hoy."""
     seccion = (db.query(models.TaskSection)
                .filter(models.TaskSection.id == section_id,
                        models.TaskSection.user_id == user_id).first())

@@ -33,6 +33,18 @@ logger = logging.getLogger("migraciones")
 # (tabla, columna, definición SQL) — solo columnas opcionales, con valor por defecto
 COLUMNAS = [
     ("random_tasks", "section_id", "INTEGER"),
+    ("task_sections", "in_today", "BOOLEAN DEFAULT FALSE"),
+    ("daily_tasks", "kind", "VARCHAR DEFAULT 'habito'"),
+    ("daily_tasks", "minutes", "INTEGER DEFAULT 0"),
+    ("daily_tasks", "per_week", "INTEGER DEFAULT 7"),
+    ("daily_tasks", "days", "VARCHAR DEFAULT ''"),
+    ("daily_tasks", "priority", "INTEGER DEFAULT 2"),
+    ("daily_tasks", "target", "FLOAT"),
+    ("daily_tasks", "unit", "VARCHAR DEFAULT ''"),
+    ("daily_tasks", "step", "FLOAT"),
+    ("daily_tasks", "link", "VARCHAR DEFAULT ''"),
+    ("daily_tasks", "description", "TEXT DEFAULT ''"),
+    ("task_completions", "value", "FLOAT"),
     ("skills", "stat", "VARCHAR DEFAULT 'INT'"),
     ("skills", "daily_minutes", "INTEGER DEFAULT 15"),
     ("skills", "category", "VARCHAR"),

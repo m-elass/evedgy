@@ -1,8 +1,25 @@
 # ── Qué NO se sube a GitHub ───────────────────────────────
-.env                  # tus claves secretas
-__pycache__/          # caché de Python
+# Ojo: en .gitignore los comentarios van siempre en su propia línea.
+# Un «# comentario» al final de una regla la rompe sin avisar.
+
+# Tus claves secretas (la plantilla .env.example sí se sube)
+.env
+.env.*
+!.env.example
+
+# Caché de Python
+__pycache__/
 *.pyc
-.venv/                # tu entorno virtual de Python
+.pytest_cache/
+
+# Entorno virtual de Python
+.venv/
 venv/
-.idea/                # configuración local de PyCharm
+
+# Bases de datos locales de pruebas
+*.db
+*.sqlite3
+
+# Configuración local de editores y del sistema
+.idea/
 .DS_Store

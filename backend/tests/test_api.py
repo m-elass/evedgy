@@ -398,12 +398,47 @@ def test_widget_con_llave_propia():
     w = c.get("/widget", headers={"Authorization": f"Bearer {llave}"})
     assert w.status_code == 200
     datos = w.json()
-    assert set(datos) == {"date", "quote", "habits", "tasks", "letter", "missions"}
+    assert set(datos) == {"date", "quote", "quote_tomorrow", "quotes", "habits", "tasks", "letter", "missions"}
     assert "user_id" not in w.text and "usuario-a" not in w.text
     assert c.get("/widget", headers={"Authorization": "Bearer tcw_inventada"}).status_code == 401
     assert c.get("/widget").status_code == 401
     c.delete(f"/widget/tokens/{llaves[0].json()['id']}", headers=A)
     assert c.get("/widget", headers={"Authorization": f"Bearer {llave}"}).status_code == 401
+
+
+def test_secciones_de_tareas_en_hoy_y_widget_de_frases():
+    s1 = c.post("/task-sections", json={"name": "Universidad"}, headers=A).json()
+    s2 = c.post("/task-sections", json={"name": "Casa"}, headers=A).json()
+    assert s1["in_today"] is False
+    for txt, sec in [("Entregar práctica", s1["id"]), ("Estudiar señales", s1["id"]), ("Fregar", s2["id"]), ("Suelta", None)]:
+        c.post("/random-tasks", json={"content": txt, "section_id": sec}, headers=A)
+    hecha = c.post("/random-tasks", json={"content": "Ya hecha", "section_id": s1["id"]}, headers=A).json()
+    c.patch(f"/random-tasks/{hecha['id']}", json={"done": True}, headers=A)
+    assert c.get(f"/today?date={HOY}", headers=A).json()["task_sections"] == []
+    r = c.patch(f"/task-sections/{s1['id']}", json={"in_today": True}, headers=A)
+    assert r.status_code == 200 and r.json()["in_today"] is True
+    hoy = c.get(f"/today?date={HOY}", headers=A).json()["task_sections"]
+    assert [x["name"] for x in hoy] == ["Universidad"]
+    assert [t["content"] for t in hoy[0]["tasks"]] == ["Entregar práctica", "Estudiar señales"], "solo pendientes, en orden"
+    # otro usuario no puede tocar la sección ni la ve en su Hoy
+    assert c.patch(f"/task-sections/{s1['id']}", json={"in_today": False}, headers=B).status_code == 404
+    assert c.get(f"/today?date={HOY}", headers=B).json()["task_sections"] == []
+    # renombrar no la saca de Hoy; quitarla sí
+    c.patch(f"/task-sections/{s1['id']}", json={"name": "Uni"}, headers=A)
+    assert c.get("/task-sections", headers=A).json()[0]["in_today"] is True
+    # el widget enseña las tareas de esa sección y trae las frases para ir rotando
+    for i in range(3):
+        c.post("/quotes", json={"text": f"Rota {i}", "author": "Yo"}, headers=A)
+    llave = c.post("/widget/tokens", json={"name": "frases"}, headers=A)
+    if llave.status_code == 409:   # la prueba anterior dejó llaves: se libera una
+        c.delete(f"/widget/tokens/{c.get('/widget/tokens', headers=A).json()[0]['id']}", headers=A)
+        llave = c.post("/widget/tokens", json={"name": "frases"}, headers=A)
+    w = c.get("/widget", headers={"Authorization": f"Bearer {llave.json()['token']}"}).json()
+    assert w["tasks"] == ["Entregar práctica", "Estudiar señales"]
+    assert w["quotes"][0] == w["quote"], "la rotación empieza por la frase del día"
+    assert len({q["text"] for q in w["quotes"]}) == len(w["quotes"]) and w["quote_tomorrow"]
+    c.patch(f"/task-sections/{s1['id']}", json={"in_today": False}, headers=A)
+    assert c.get(f"/today?date={HOY}", headers=A).json()["task_sections"] == []
 
 
 def test_avisos_push(monkeypatch):
@@ -474,3 +509,250 @@ def test_borrado_de_cuenta_completo():
             else:
                 assert restos == 0, f"quedan filas en {tabla.name}"
         assert db.query(models.DailyLetter).filter_by(user_id="usuario-b").count() == 1
+
+
+def _habito(U, **kw):
+    r = c.post("/daily-tasks", json=kw, headers=U)
+    assert r.status_code == 200, r.text
+    return r.json()["id"]
+
+
+def _estado(U, todos=False):
+    r = c.get(f"/daily-tasks/today?date={HOY}{'&all=1' if todos else ''}", headers=U)
+    assert r.status_code == 200, r.text
+    return {h["title"]: h for h in r.json()}
+
+
+def test_habitos_en_cuatro_tipos():
+    U = {"X-Test-User": "habitos-4", "Origin": "https://ok.test"}
+    meditar = _habito(U, title="Meditar", minutes=25, priority=1)
+    piano = _habito(U, title="Piano", kind="bloque", minutes=45, per_week=2)
+    gym = _habito(U, title="Gimnasio", kind="bloque", minutes=75, days=[0, 1, 3, 4], link="entreno")
+    agua = _habito(U, title="Agua", kind="metrica", target=3.5, unit="L", step=0.25, minutes=30)
+    sueno = _habito(U, title="Sueño", kind="metrica", target=8, unit="h", step=0.5, link="sueno")
+    regla = _habito(U, title="Primero lo importante", kind="principio", description="Lo difícil, por la mañana")
+    # validación
+    assert c.post("/daily-tasks", json={"title": "x", "kind": "otro"}, headers=U).status_code == 422
+    assert c.post("/daily-tasks", json={"title": "x", "days": [7]}, headers=U).status_code == 422
+    assert c.post("/daily-tasks", json={"title": "   "}, headers=U).status_code == 422
+    assert c.post("/daily-tasks", json={"title": "x", "link": "otra"}, headers=U).status_code == 422
+    e = _estado(U)
+    assert e["Gimnasio"]["days"] == [0, 1, 3, 4] and e["Gimnasio"]["per_week"] == 4 and e["Gimnasio"]["week_goal"] == 4
+    assert e["Agua"]["minutes"] == 0, "una métrica no ocupa tiempo"
+    assert e["Piano"]["streak_unit"] == "semanas" and e["Meditar"]["streak_unit"] == "dias"
+    assert e["Primero lo importante"]["description"].startswith("Lo difícil")
+    # métricas: sumar con el botón rápido y fijar la cifra; se cumple al llegar al objetivo
+    r = c.put(f"/daily-tasks/{agua}/value", json={"date": HOY.isoformat(), "add": 0.25}, headers=U).json()
+    r = c.put(f"/daily-tasks/{agua}/value", json={"date": HOY.isoformat(), "add": 0.25}, headers=U).json()
+    assert r == {"value": 0.5, "done": False}
+    assert c.put(f"/daily-tasks/{agua}/value", json={"date": HOY.isoformat(), "value": 3.5}, headers=U).json()["done"]
+    assert _estado(U)["Agua"]["value_today"] == 3.5 and _estado(U)["Agua"]["done_today"]
+    assert c.put(f"/daily-tasks/{meditar}/value", json={"date": HOY.isoformat(), "value": 1}, headers=U).status_code == 422
+    # la métrica de sueño escribe también en Sueño (y lee de allí)
+    c.put(f"/daily-tasks/{sueno}/value", json={"date": HOY.isoformat(), "value": 7.5}, headers=U)
+    assert [n["hours"] for n in c.get("/sleep", headers=U).json()] == [7.5]
+    c.put("/sleep", json={"date": HOY.isoformat(), "hours": 8.25}, headers=U)
+    assert _estado(U)["Sueño"]["value_today"] == 8.25 and _estado(U)["Sueño"]["done_today"]
+    # principio: sí / a medias / no, sin racha; se puede borrar la respuesta
+    assert c.put(f"/daily-tasks/{regla}/value", json={"date": HOY.isoformat(), "value": 0.3}, headers=U).status_code == 422
+    c.put(f"/daily-tasks/{regla}/value", json={"date": HOY.isoformat(), "value": 0.5}, headers=U)
+    assert _estado(U)["Primero lo importante"]["value_today"] == 0.5 and _estado(U)["Primero lo importante"]["streak"] == 0
+    with SessionLocal() as db:   # «a medias» o «no» no cuentan como hábito cumplido en los resúmenes
+        assert db.query(models.TaskCompletion).filter_by(daily_task_id=regla, date=HOY).one().done is False
+    c.put(f"/daily-tasks/{regla}/value", json={"date": HOY.isoformat(), "clear": True}, headers=U)
+    assert _estado(U)["Primero lo importante"]["value_today"] is None
+    # el gimnasio se marca solo al registrar un entreno
+    ej = c.post("/exercises", json={"name": "Press banca"}, headers=U).json()
+    c.post("/sessions", json={"exercise_id": ej["id"], "date": HOY.isoformat(), "sets": [{"set_number": 1, "reps": 5, "weight": 60}]}, headers=U)
+    assert _estado(U)["Gimnasio"]["done_today"]
+    # racha de semanas: 2 veces la semana pasada cumple la meta de «2 por semana»
+    lunes = HOY - timedelta(days=HOY.weekday())
+    for d in (lunes - timedelta(days=6), lunes - timedelta(days=3)):
+        c.put(f"/daily-tasks/{piano}/complete", json={"date": d.isoformat(), "done": True}, headers=U)
+    k = _estado(U)["Piano"]
+    assert k["streak"] == 1 and k["week_goal"] == 2
+    # editar y pausar
+    assert c.patch(f"/daily-tasks/{piano}", json={"minutes": 50, "priority": 1}, headers=U).status_code == 200
+    assert c.patch(f"/daily-tasks/{piano}", json={"active": False}, headers=U).status_code == 200
+    assert "Piano" not in _estado(U) and _estado(U, todos=True)["Piano"]["minutes"] == 50
+    assert c.patch(f"/daily-tasks/{piano}", json={"active": True}, headers=B).status_code == 404
+    assert c.post(f"/daily-tasks/{gym}/complete", headers=U).status_code == 405
+
+
+def test_plan_automatico_cabe_en_tu_tiempo():
+    U = {"X-Test-User": "plan-auto", "Origin": "https://ok.test"}
+    meditar = _habito(U, title="Meditar", minutes=25, priority=1)
+    _habito(U, title="Estudiar", kind="bloque", minutes=90, per_week=5, priority=1)
+    _habito(U, title="Selfcare", minutes=30, per_week=2, priority=3)
+    _habito(U, title="Vitaminas", minutes=0)
+    _habito(U, title="Agua", kind="metrica", target=3.5, unit="L", step=0.25)
+    _habito(U, title="Primero lo importante", kind="principio")
+    hoy_dia = HOY.weekday()
+    _habito(U, title="Solo otro día", kind="bloque", minutes=10, days=[(hoy_dia + 1) % 7])
+    assert c.put("/planner/settings", json={"budget": [60] * 7}, headers=U).status_code == 200
+    p = c.get(f"/today?date={HOY}", headers=U).json()["plan"]
+    assert p["source"] == "auto" and p["budget"] == 60
+    titulos = [h["title"] for h in p["items"]]
+    assert titulos[0] == "Meditar", "lo imprescindible y diario, primero"
+    assert "Vitaminas" in titulos, "lo que no lleva tiempo siempre cabe"
+    assert p["planned_minutes"] <= 60
+    assert "Solo otro día" not in titulos + [h["title"] for h in p["extras"]]
+    assert "Solo otro día" in [h["title"] for h in p["others"]], "lo que no toca sigue a mano"
+    assert "Estudiar" in [h["title"] for h in p["extras"]], "lo que no cabe, a «si te da tiempo»"
+    assert [m["title"] for m in p["metrics"]] == ["Agua"] and p["principle"]["title"] == "Primero lo importante"
+    # el mismo día da el mismo plan, aunque vayas marcando
+    c.put(f"/daily-tasks/{meditar}/complete", json={"date": HOY.isoformat(), "done": True}, headers=U)
+    p2 = c.get(f"/today?date={HOY}", headers=U).json()["plan"]
+    assert [h["id"] for h in p2["items"]] == [h["id"] for h in p["items"]] and p2["done_minutes"] == 25
+    # con más tiempo, entra también lo grande
+    c.put("/planner/settings", json={"budget": [240] * 7}, headers=U)
+    p3 = c.get(f"/today?date={HOY}", headers=U).json()["plan"]
+    assert "Estudiar" in [h["title"] for h in p3["items"]]
+    assert c.put("/planner/settings", json={"budget": [60] * 6}, headers=U).status_code == 422
+    assert c.put("/planner/settings", json={"budget": [1000] * 7}, headers=U).status_code == 422
+    # el widget cuenta lo del plan, no todos los hábitos
+    w = c.post("/widget/tokens", json={"name": "p"}, headers=U).json()["token"]
+    wj = c.get("/widget", headers={"Authorization": f"Bearer {w}"}).json()
+    assert wj["habits"]["total"] == len(p3["items"])
+
+
+def test_importar_configuracion_sugerida():
+    U = {"X-Test-User": "importa", "Origin": "https://ok.test"}
+    agua = _habito(U, title="3,5L de agua")
+    regla = _habito(U, title="Primero lo importante")
+    otro = _habito(B, title="Ajeno")
+    r = c.post("/daily-tasks/import", json={"habits": [
+        {"id": agua, "match_title": "3,5L de agua", "title": "Agua", "kind": "metrica", "target": 3.5, "unit": "L", "step": 0.25},
+        {"id": regla, "match_title": "Primero lo importante", "kind": "principio", "description": "Lo difícil, primero"},
+        {"id": otro, "match_title": "Ajeno", "title": "Mío"},
+        {"id": regla, "match_title": "Otro título", "minutes": 99},
+        {"title": "Japonés", "kind": "habito", "minutes": 15},
+    ], "budget": [200, 200, 200, 200, 200, 300, 300], "brief": "Constancia"}, headers=U).json()
+    assert r["updated"] == 2 and r["created"] == 1 and len(r["skipped"]) == 2
+    e = _estado(U)
+    assert e["Agua"]["kind"] == "metrica" and e["Agua"]["target"] == 3.5 and e["Japonés"]["minutes"] == 15
+    assert e["Primero lo importante"]["kind"] == "principio" and e["Primero lo importante"]["minutes"] == 0
+    assert _estado(B)["Ajeno"]["title"] == "Ajeno", "nunca toca hábitos de otra cuenta"
+    s = c.get("/planner/settings", headers=U).json()
+    assert s["budget"][5] == 300 and s["brief"] == "Constancia" and s["connected"] is False
+
+
+def test_claude_planifica_con_llave_propia():
+    import json as _json
+    from app import maestria
+    U = {"X-Test-User": "con-claude", "Origin": "https://ok.test"}
+    meditar = _habito(U, title="Meditar", minutes=25, priority=1)
+    estudio = _habito(U, title="Estudiar", kind="bloque", minutes=90, per_week=5)
+    proy = _habito(U, title="Proyecto", kind="bloque", minutes=60, per_week=4)
+    agua = _habito(U, title="Agua", kind="metrica", target=3.5, unit="L")
+    regla = _habito(U, title="Primero lo importante", kind="principio")
+    ajeno = _habito(B, title="De otra cuenta", minutes=5)
+    c.put("/planner/settings", json={"budget": [120] * 7, "brief": "Constancia antes que intensidad"}, headers=U)
+    c.put(f"/daily-letters/{HOY}", json={"body": "SECRETO-DE-LA-CARTA"}, headers=U)
+    c.post("/notes", json={"content": "SECRETO-DE-LA-NOTA"}, headers=U)
+    c.post("/goals", json={"description": "Aprobar el curso"}, headers=U)
+
+    # llaves: se muestran una vez, máximo 2; la de la app no abre el planificador ni al revés
+    k1 = c.post("/planner/keys", headers=U).json()
+    assert k1["token"].startswith("tcp_")
+    k2 = c.post("/planner/keys", headers=U).json()
+    assert c.post("/planner/keys", headers=U).status_code == 409
+    assert "token" not in _json.dumps(c.get("/planner/settings", headers=U).json()["keys"])
+    K = {"Authorization": f"Bearer {k1['token']}"}
+    assert c.get("/planner/context", headers=U).status_code == 401
+    assert c.get("/planner/context", headers={"Authorization": "Bearer tcp_falsa"}).status_code == 401
+    assert c.get("/today", headers=K).status_code in (401, 422)
+    w = c.post("/widget/tokens", json={"name": "x"}, headers=U).json()["token"]
+    assert c.get("/planner/context", headers={"Authorization": f"Bearer {w}"}).status_code == 401
+
+    assert c.get("/planner/settings", headers=U).json()["connected"] is False, "llave sin usar: aún no conectado"
+    ctx = c.get("/planner/context?force=1", headers=K).json()
+    assert c.get("/planner/settings", headers=U).json()["connected"] is True
+    plan_job = next(j for j in ctx["jobs"] if j["kind"] == "plan_dia")
+    assert plan_job["post"] == f"/planner/plan?date={ctx['date']}" and plan_job["schema"]["type"] == "object"
+    assert "Meditar" in plan_job["prompt"] and "Constancia antes que intensidad" in plan_job["prompt"]
+    assert "Aprobar el curso" in plan_job["prompt"]
+    assert "SECRETO" not in _json.dumps(ctx), "ni cartas ni notas salen hacia Claude"
+
+    # Claude se pasa del tiempo y mete un id ajeno: el servidor lo corrige
+    res = {"note": "Hoy, foco en el estudio.", "principle_id": regla, "metrics": [agua, meditar],
+           "items": [{"id": estudio, "why": "Vas atrasado", "extra": False},
+                     {"id": meditar, "why": "Cada día", "extra": False},
+                     {"id": proy, "why": "Avanza", "extra": False},
+                     {"id": ajeno, "why": "x", "extra": False},
+                     {"id": meditar, "why": "repetido", "extra": False}]}
+    r = c.post(plan_job["post"], json={"result": res, "model": "sonnet"}, headers=K).json()
+    assert r == {"ok": True, "items": 2, "extras": 1, "ignored": 2}
+    p = c.get(f"/today?date={ctx['date']}", headers=U).json()["plan"]
+    assert p["source"] == "claude" and p["note"] == "Hoy, foco en el estudio." and p["model"] == "sonnet"
+    assert [h["title"] for h in p["items"]] == ["Estudiar", "Meditar"] and p["planned_minutes"] <= 120
+    assert [h["title"] for h in p["extras"]] == ["Proyecto"] and p["items"][0]["why"] == "Vas atrasado"
+    assert [m["title"] for m in p["metrics"]] == ["Agua"] and p["principle"]["id"] == regla
+    # si Claude se olvida de lo imprescindible y diario, el servidor lo pone delante igualmente
+    r = c.post(plan_job["post"], json={"result": {**res, "items": [{"id": estudio, "why": "Foco", "extra": False}]}}, headers=K)
+    assert [h["title"] for h in c.get(f"/today?date={ctx['date']}", headers=U).json()["plan"]["items"]] == ["Meditar", "Estudiar"]
+    # y si lo pone detrás de algo que llena el día, lo imprescindible pasa delante
+    c.put("/planner/settings", json={"budget": [60] * 7}, headers=U)
+    c.post(plan_job["post"], json={"result": {**res, "items": [{"id": proy, "why": "Avanza", "extra": False},
+                                                              {"id": meditar, "why": "Hoy también", "extra": False}]}}, headers=K)
+    p = c.get(f"/today?date={ctx['date']}", headers=U).json()["plan"]
+    assert [h["title"] for h in p["items"]] == ["Meditar"] and p["items"][0]["why"] == "Hoy también"
+    assert [h["title"] for h in p["extras"]] == ["Proyecto"]
+    c.put("/planner/settings", json={"budget": [120] * 7}, headers=U)
+    # sin «force», con el plan hecho no hay encargo del día
+    assert not [j for j in c.get("/planner/context", headers=K).json()["jobs"] if j["kind"] == "plan_dia"]
+    # descartarlo devuelve el automático, y la siguiente ronda no lo rehace (salvo «rehacer»)
+    c.delete(f"/planner/plan?date={ctx['date']}", headers=U)
+    assert c.get(f"/today?date={ctx['date']}", headers=U).json()["plan"]["source"] == "auto"
+    assert not [j for j in c.get("/planner/context", headers=K).json()["jobs"] if j["kind"] == "plan_dia"]
+    assert [j for j in c.get("/planner/context?force=1", headers=K).json()["jobs"] if j["kind"] == "plan_dia"]
+
+    # planes de misiones: con Claude conectado van a la cola (no a la API del servidor)
+    s = c.post("/skill-board/skills", json={"name": "Ajedrez", "daily_minutes": 15}, headers=U).json()
+    b = c.get(f"/skill-board?date={HOY}", headers=U).json()
+    h = next(x for x in b["skills"] if x["id"] == s["id"])
+    assert b["ai"]["via"] == "claude" and h["plan"]["queued"] and not h["plan"]["generating"]
+    assert c.post(f"/skill-board/skills/{s['id']}/plan", headers=U).status_code == 409, "ya está en cola"
+    job = next(j for j in c.get("/planner/context", headers=K).json()["jobs"] if j["kind"] == "plan_mision")
+    assert "Ajedrez" in job["prompt"] and job["post"] == f"/planner/skill-plans/{s['id']}"
+    assert c.post(job["post"], json={"result": {"competencias": {}}}, headers=K).status_code == 422
+    KB = {"Authorization": f"Bearer {c.post('/planner/keys', headers=B).json()['token']}"}
+    assert c.post(job["post"], json={"result": {}}, headers=KB).status_code == 404
+    plan = _json.loads(_json.dumps(maestria.plantilla("estrategia", "Ajedrez")))
+    assert c.post(job["post"], json={"result": plan, "model": "sonnet"}, headers=K).json()["status"] == "lista"
+    h = next(x for x in c.get(f"/skill-board?date={HOY}", headers=U).json()["skills"] if x["id"] == s["id"])
+    assert h["plan"]["source"] == "ia" and not h["plan"]["queued"]
+    assert c.post(job["post"], json={"result": plan}, headers=K).status_code == 409, "ya no está en cola"
+
+    # revocar las llaves desconecta a Claude; lo que estaba en cola vuelve a la plantilla
+    s2 = c.post("/skill-board/skills", json={"name": "Go", "daily_minutes": 15}, headers=U).json()
+    assert next(x for x in c.get(f"/skill-board?date={HOY}", headers=U).json()["skills"] if x["id"] == s2["id"])["plan"]["queued"]
+    for k in (k1, k2):
+        assert c.delete(f"/planner/keys/{k['id']}", headers=U).status_code == 200
+    assert c.get("/planner/context", headers=K).status_code == 401
+    assert c.get("/planner/settings", headers=U).json()["connected"] is False
+    h2 = next(x for x in c.get(f"/skill-board?date={HOY}", headers=U).json()["skills"] if x["id"] == s2["id"])
+    assert not h2["plan"]["queued"] and h2["plan"]["source"] == "plantilla"
+
+
+def test_app_privada_solo_cuentas_permitidas(monkeypatch):
+    """Con USUARIOS_PERMITIDOS, un token válido de otra cuenta no abre nada (403); sin la variable, todo igual."""
+    from fastapi import HTTPException
+    from fastapi.security import HTTPAuthorizationCredentials
+    from jose import jwt as _jwt
+    from app import auth
+    from app.config import settings
+    monkeypatch.setattr(settings, "SUPABASE_JWT_SECRET", "secreto-de-prueba")
+
+    def entra(correo):
+        tok = _jwt.encode({"sub": "id-" + (correo or "sin"), "email": correo}, "secreto-de-prueba", algorithm="HS256")
+        return auth.get_current_user_id(HTTPAuthorizationCredentials(scheme="Bearer", credentials=tok))
+
+    monkeypatch.setattr(settings, "USUARIOS_PERMITIDOS", "")
+    assert entra("cualquiera@correo.com") == "id-cualquiera@correo.com", "sin lista, como siempre"
+    monkeypatch.setattr(settings, "USUARIOS_PERMITIDOS", " Yo@Correo.com , otra@correo.com")
+    assert entra("yo@correo.com") == "id-yo@correo.com", "sin distinguir mayúsculas ni espacios"
+    for correo in ("intruso@correo.com", "", None):
+        with pytest.raises(HTTPException) as e:
+            entra(correo)
+        assert e.value.status_code == 403 and "privada" in e.value.detail

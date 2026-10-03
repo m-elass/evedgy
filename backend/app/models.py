@@ -94,28 +94,102 @@ class ExerciseSet(Base):
 # ─────────────────────────────────────────────────────────
 
 class DailyTask(Base):
-    """Hábito recurrente que marcas cada día."""
+    """
+    Algo que sostiene tus días. No todo es igual, así que hay cuatro tipos:
+      · habito     — una práctica con su tiempo (meditar 10 min, leer 20 min).
+      · bloque     — un objetivo del día, trabajo largo (estudiar 90 min).
+      · metrica    — una cifra que se va sumando (agua 3,5 L, 10 000 pasos).
+      · principio  — algo que marca el día («primero lo importante»): no se marca, se vive;
+                     por la noche, «¿lo viviste?».
+    No todos son diarios: `per_week` dice cuántas veces a la semana, y `days`
+    (opcional) fija los días exactos (p. ej. el gimnasio L, M, J, V).
+    """
     __tablename__ = "daily_tasks"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, index=True, nullable=False)
     title = Column(String, nullable=False)
     active = Column(Boolean, default=True)      # para pausar sin borrar
+    kind = Column(String, default="habito")     # habito · bloque · metrica · principio
+    minutes = Column(Integer, default=0)        # lo que suele llevar (hábitos y bloques)
+    per_week = Column(Integer, default=7)       # veces por semana (7 = cada día)
+    days = Column(String, default="")           # días fijos «0,1,3,4» (0 = lunes); vacío = cualquiera
+    priority = Column(Integer, default=2)       # 1 imprescindible · 2 importante · 3 si da tiempo
+    target = Column(Float, nullable=True)       # métricas: el objetivo del día (3.5)
+    unit = Column(String, default="")           # métricas: «L», «g», «pasos», «h»
+    step = Column(Float, nullable=True)         # métricas: lo que suma el botón rápido (0.25)
+    link = Column(String, default="")           # «entreno» (se marca solo al entrenar) · «sueno» (lee Sueño)
+    description = Column(Text, default="")      # principios: qué significa vivirlo
 
     completions = relationship("TaskCompletion", back_populates="task",
                                cascade="all, delete-orphan")
 
 
 class TaskCompletion(Base):
-    """El tick de un hábito en un día concreto."""
+    """El tick de un hábito en un día concreto (o la cifra de una métrica, o la respuesta a un principio)."""
     __tablename__ = "task_completions"
 
     id = Column(Integer, primary_key=True, index=True)
     daily_task_id = Column(Integer, ForeignKey("daily_tasks.id"), nullable=False)
     date = Column(Date, nullable=False)
     done = Column(Boolean, default=True)
+    # Métricas: la cifra del día. Principios: 1 sí · 0.5 a medias · 0 no.
+    value = Column(Float, nullable=True)
 
     task = relationship("DailyTask", back_populates="completions")
+
+
+class PlannerSettings(Base):
+    """
+    Cómo planificar tus días: el tiempo que tienes cada día de la semana (en
+    minutos, de lunes a domingo) y lo que quieres conseguir, en tus palabras,
+    para que Claude lo lea al decidir el plan de cada mañana.
+    """
+    __tablename__ = "planner_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, unique=True, index=True, nullable=False)
+    budget = Column(String, default="")         # «180,180,180,180,180,240,240»
+    brief = Column(Text, default="")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class DayPlan(Base):
+    """
+    El plan de un día decidido por Claude (con la suscripción del usuario).
+    Si un día no lo hay, la app calcula uno automático al vuelo: Hoy nunca
+    queda vacío. `items` es JSON: [{"id": 11, "why": "…", "extra": false}, …].
+    """
+    __tablename__ = "day_plans"
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_day_plan_user_date"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    date = Column(Date, nullable=False)
+    source = Column(String, default="claude")
+    items = Column(Text, default="[]")
+    metrics = Column(Text, nullable=True)       # JSON con los ids de métricas a mostrar (null = todas)
+    note = Column(Text, default="")
+    principle_id = Column(Integer, nullable=True)
+    model = Column(String, default="")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PlannerKey(Base):
+    """
+    Llave personal para que el planificador (Claude, desde GitHub Actions)
+    lea el contexto y guarde el plan del día. Como las de los widgets: solo se
+    guarda su huella SHA-256, caduca y se revoca al instante.
+    """
+    __tablename__ = "planner_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=False)
+    token_hash = Column(String, unique=True, index=True, nullable=False)
+    prefix = Column(String, default="")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class RandomTask(Base):
@@ -162,6 +236,8 @@ class TaskSection(Base):
     name = Column(String, nullable=False)
     color = Column(String, default="#E8B84B")
     order = Column(Integer, default=0)
+    # ¿Sus tareas pendientes salen también en Hoy? (p. ej. «Universidad» cada día a la vista)
+    in_today = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

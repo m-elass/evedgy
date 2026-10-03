@@ -1,0 +1,64 @@
+# ══════════════════════════════════════════════════════════════
+# Claude planifica tu día, con TU suscripción de Claude.
+#
+# Cada mañana pregunta a la API qué hay que planificar (el plan de hoy y los
+# planes de misiones en cola), se lo encarga a Claude Code en modo no
+# interactivo (`claude -p`, sin herramientas: solo responde un JSON) y
+# guarda el resultado. Gasta los límites de tu plan de Claude, no una API de
+# pago. Si un día falla, la app usa su plan automático: Hoy nunca queda vacío.
+#
+# Se configura una vez (los pasos completos están en la app: Ajustes →
+# «Claude planifica tu día»). En GitHub → Settings → Secrets and variables →
+# Actions:
+#   · Secreto   CLAUDE_CODE_OAUTH_TOKEN → el que te da `claude setup-token`
+#   · Secreto   PLANNER_KEY             → la llave tcp_… que crea la app
+#   · Variable  API_URL                 → ya la tienes (la usa la carta)
+#   · Variable  PLANNER_MODEL           → opcional: sonnet (por defecto) u opus
+#
+# Privacidad: el registro de cada ejecución NUNCA muestra tus datos ni lo que
+# responde Claude (si el repositorio es público, sus registros también lo son).
+#
+# Horas en UTC: 05:05 UTC = 7:05 en Madrid en verano (6:05 en invierno).
+# Las rondas de cada 2 horas solo hacen algo si hay un plan de misiones en
+# cola (o si el de la mañana no pudo hacerse); si no, terminan en segundos.
+# ══════════════════════════════════════════════════════════════
+name: Plan del día con Claude
+
+on:
+  schedule:
+    - cron: "5 5 * * *"
+    - cron: "35 6-20/2 * * *"
+  workflow_dispatch:
+    inputs:
+      rehacer:
+        description: "Rehacer el plan de hoy aunque ya exista"
+        type: boolean
+        default: false
+
+concurrency:
+  group: plan-del-dia
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  planificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pedir el plan a Claude
+        env:
+          API_URL: ${{ vars.API_URL }}
+          PLANNER_MODEL: ${{ vars.PLANNER_MODEL }}
+          PLANNER_TZ: ${{ vars.PLANNER_TZ }}
+          PLANNER_KEY: ${{ secrets.PLANNER_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          REHACER: ${{ inputs.rehacer }}
+        run: node .github/scripts/plan-del-dia.mjs

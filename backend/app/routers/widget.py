@@ -10,7 +10,8 @@ lectura que generas en Ajustes:
     solo guarda su huella SHA-256: ni quien vea la base puede usarla.
   · Caduca a los 90 días. Se revoca al instante borrándola. Máximo 3.
   · Solo abre GET /widget, que devuelve un resumen mínimo: nunca cartas,
-    escritos, perfil, amigos ni identificadores.
+    escritos, perfil, amigos ni identificadores. Las frases que van son solo
+    las marcadas para el widget (el ojo de la estrella Frases).
   · Viaja en la cabecera Authorization, nunca en la URL (las URL acaban en
     los registros de los servidores).
 
@@ -36,9 +37,9 @@ from app.database import get_db
 from app.auth import get_current_user_id
 from app.security import _ip
 from app import models, schemas
-from app.routers.daily_tasks import tasks_today
+from app.habitos import plan_de_hoy
 from app.routers.quotes import frase_del_dia
-from app.routers.today import estado_carta, estado_misiones
+from app.routers.today import estado_carta, estado_misiones, secciones_en_hoy
 
 router = APIRouter(tags=["widget"])
 
@@ -153,16 +154,36 @@ def widget(tz: str = "Europe/Madrid", t: models.WidgetToken = Depends(_llave_val
               .filter(models.Quote.user_id == user_id, models.Quote.in_widget == True)  # noqa: E712
               .all())
     q = frase_del_dia(frases, user_id, hoy)
-    habitos = tasks_today(hoy, db, user_id)
-    tareas = (db.query(models.RandomTask.content)
-              .filter(models.RandomTask.user_id == user_id, models.RandomTask.done == False)  # noqa: E712
-              .order_by(models.RandomTask.created_at.desc()).limit(3).all())
+    manana = frase_del_dia(frases, user_id, hoy + timedelta(days=1))
+    # Para el widget de Frases: todas (hasta 30), empezando por la del día, para
+    # que pueda ir cambiando a lo largo del día aunque el servidor esté dormido.
+    unicas = sorted(frases, key=lambda f: f.id)
+    if q is not None:
+        i = unicas.index(q)
+        unicas = unicas[i:] + unicas[:i]
+    misiones = estado_misiones(db, user_id, hoy)
+    plan = plan_de_hoy(db, user_id, hoy)
+    habitos = plan["items"]                     # lo que toca hoy (el plan), no todos los hábitos
+    # Tareas: las de las secciones puestas «En Hoy» si las hay; si no, las últimas pendientes
+    en_hoy = [t["content"] for s in secciones_en_hoy(db, user_id, 4) for t in s["tasks"]][:4]
+    if en_hoy:
+        tareas = en_hoy
+    else:
+        tareas = [c for (c,) in db.query(models.RandomTask.content)
+                  .filter(models.RandomTask.user_id == user_id, models.RandomTask.done == False)  # noqa: E712
+                  .order_by(models.RandomTask.created_at.desc()).limit(3).all()]
+
+    def _frase(f):
+        return {"text": _corta(f.text, 280), "author": _corta(f.author or "", 60)} if f else None
+
     return {
         "date": hoy.isoformat(),
-        "quote": {"text": _corta(q.text, 280), "author": _corta(q.author or "", 60)} if q else None,
+        "quote": _frase(q),
+        "quote_tomorrow": _frase(manana),
+        "quotes": [_frase(f) for f in unicas[:30]],
         "habits": {"done": sum(1 for h in habitos if h["done_today"]), "total": len(habitos),
                    "pending": [_corta(h["title"], 40) for h in habitos if not h["done_today"]][:4]},
-        "tasks": [_corta(c, 60) for (c,) in tareas],
+        "tasks": [_corta(c, 60) for c in tareas],
         "letter": estado_carta(db, user_id, hoy),
-        "missions": estado_misiones(db, user_id, hoy),
+        "missions": misiones,
     }
